@@ -58,6 +58,14 @@ return [
             'ignore_exceptions' => false,
         ],
 
+        'json' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/laravel.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'formatter' => \Monolog\Formatter\JsonFormatter::class,
+            'replace_placeholders' => true,
+        ],
+
         'single' => [
             'driver' => 'single',
             'path' => storage_path('logs/laravel.log'),

@@ -11,6 +11,21 @@
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
         </testsuite>
+        <testsuite name="Auth">
+            <directory>app/Api/Modules/Auth/Tests</directory>
+        </testsuite>
+        <testsuite name="User">
+            <directory>app/Api/Modules/User/Tests</directory>
+        </testsuite>
+        <testsuite name="Import">
+            <directory>app/Api/Modules/Import/Tests</directory>
+        </testsuite>
+        <testsuite name="Export">
+            <directory>app/Api/Modules/Export/Tests</directory>
+        </testsuite>
+        <testsuite name="Health">
+            <directory>app/Api/Modules/Health/Tests</directory>
+        </testsuite>
     </testsuites>
     <source>
         <include>
@@ -31,5 +46,6 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <env name="JWT_SECRET" value="test-jwt-secret-key-for-testing-only"/>
     </php>
 </phpunit>
