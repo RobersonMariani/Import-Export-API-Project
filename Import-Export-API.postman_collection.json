@@ -1,0 +1,832 @@
+{
+	"info": {
+		"_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+		"name": "Import Export API",
+		"description": "Collection completa para testar todas as rotas da API de Import/Export de usuários via CSV.\n\n## Setup\n1. Importe esta collection no Postman\n2. Configure a variável `base_url` (padrão: `http://localhost:8080`)\n3. Execute **Register** ou **Login** primeiro — o token JWT é salvo automaticamente\n4. Todas as rotas autenticadas usam o token automaticamente via Bearer Token",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "user_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "import_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "export_id",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{token}}",
+				"type": "string"
+			}
+		]
+	},
+	"item": [
+		{
+			"name": "Health",
+			"description": "Endpoints públicos de saúde e métricas da aplicação.",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "GET",
+						"header": [
+							{ "key": "Accept", "value": "application/json" }
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/health",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "health"]
+						}
+					}
+				},
+				{
+					"name": "Metrics (Prometheus)",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "GET",
+						"header": [
+							{ "key": "Accept", "value": "application/json" }
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/metrics",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "metrics"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Auth",
+			"description": "Autenticação JWT — register, login, refresh, logout e me.",
+			"item": [
+				{
+					"name": "Register",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var json = pm.response.json();",
+									"    pm.collectionVariables.set('token', json.data.access_token);",
+									"    if (json.data.user) {",
+									"        pm.collectionVariables.set('user_id', json.data.user.id);",
+									"    }",
+									"    pm.test('Token salvo automaticamente', function () {",
+									"        pm.expect(json.data.access_token).to.be.a('string');",
+									"    });",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "POST",
+						"header": [
+							{ "key": "Accept", "value": "application/json" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Novo Usuário\",\n    \"email\": \"novo@example.com\",\n    \"password\": \"password123\",\n    \"password_confirmation\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "register"]
+						}
+					}
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var json = pm.response.json();",
+									"    pm.collectionVariables.set('token', json.data.access_token);",
+									"    pm.test('Token salvo automaticamente', function () {",
+									"        pm.expect(json.data.access_token).to.be.a('string');",
+									"    });",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "POST",
+						"header": [
+							{ "key": "Accept", "value": "application/json" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"admin@example.com\",\n    \"password\": \"password\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "login"]
+						}
+					}
+				},
+				{
+					"name": "Login (credenciais inválidas)",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "POST",
+						"header": [
+							{ "key": "Accept", "value": "application/json" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"admin@example.com\",\n    \"password\": \"senhaerrada\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "login"]
+						}
+					}
+				},
+				{
+					"name": "Me (usuário autenticado)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Accept", "value": "application/json" }
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/me",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "me"]
+						}
+					}
+				},
+				{
+					"name": "Refresh Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var json = pm.response.json();",
+									"    pm.collectionVariables.set('token', json.data.access_token);",
+									"    pm.test('Novo token salvo', function () {",
+									"        pm.expect(json.data.access_token).to.be.a('string');",
+									"    });",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Accept", "value": "application/json" }
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/refresh",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "refresh"]
+						}
+					}
+				},
+				{
+					"name": "Logout",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"if (pm.response.code === 204) {",
+									"    pm.collectionVariables.set('token', '');",
+									"    pm.test('Token limpo após logout', function () {",
+									"        pm.expect(pm.response.code).to.equal(204);",
+									"    });",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Accept", "value": "application/json" }
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/logout",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "logout"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Users",
+			"description": "CRUD completo de usuários com filtros, paginação e ordenação.",
+			"item": [
+				{
+					"name": "Listar Usuários",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Accept", "value": "application/json" }
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/users",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "users"]
+						}
+					}
+				},
+				{
+					"name": "Listar Usuários (com filtros)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Accept", "value": "application/json" }
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/users?search=admin&role=admin&page=1&per_page=10&sort_by=name&sort_order=asc",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "users"],
+							"query": [
+								{ "key": "search", "value": "admin" },
+								{ "key": "role", "value": "admin", "description": "admin | manager | user" },
+								{ "key": "page", "value": "1" },
+								{ "key": "per_page", "value": "10" },
+								{ "key": "sort_by", "value": "name", "description": "name | email | created_at" },
+								{ "key": "sort_order", "value": "asc", "description": "asc | desc" }
+							]
+						}
+					}
+				},
+				{
+					"name": "Listar Usuários (por estado/cidade)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Accept", "value": "application/json" }
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/users?state=SP&city=São Paulo&per_page=5",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "users"],
+							"query": [
+								{ "key": "state", "value": "SP" },
+								{ "key": "city", "value": "São Paulo" },
+								{ "key": "per_page", "value": "5" }
+							]
+						}
+					}
+				},
+				{
+					"name": "Criar Usuário",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var json = pm.response.json();",
+									"    pm.collectionVariables.set('user_id', json.data.id);",
+									"    pm.test('user_id salvo', function () {",
+									"        pm.expect(json.data.id).to.be.a('number');",
+									"    });",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Accept", "value": "application/json" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"João Silva\",\n    \"email\": \"joao.silva@example.com\",\n    \"password\": \"password123\",\n    \"phone\": \"11999887766\",\n    \"address\": \"Rua das Flores, 123\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zip_code\": \"01234-567\",\n    \"birth_date\": \"1990-05-15\",\n    \"role\": \"user\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/users",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "users"]
+						}
+					}
+				},
+				{
+					"name": "Criar Usuário (campos mínimos)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Accept", "value": "application/json" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Maria Santos\",\n    \"email\": \"maria.santos@example.com\",\n    \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/users",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "users"]
+						}
+					}
+				},
+				{
+					"name": "Buscar Usuário por ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Accept", "value": "application/json" }
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/users/{{user_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "users", "{{user_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Atualizar Usuário",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Accept", "value": "application/json" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"João Silva Atualizado\",\n    \"phone\": \"11988776655\",\n    \"role\": \"manager\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/users/{{user_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "users", "{{user_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Atualizar Usuário (parcial)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Accept", "value": "application/json" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"city\": \"Rio de Janeiro\",\n    \"state\": \"RJ\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/users/{{user_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "users", "{{user_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Deletar Usuário (soft delete)",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{ "key": "Accept", "value": "application/json" }
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/users/{{user_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "users", "{{user_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Buscar Usuário inexistente (404)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Accept", "value": "application/json" }
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/users/99999",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "users", "99999"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Imports",
+			"description": "Importação massiva de usuários via CSV.\n\n**Para testar o upload**, crie um arquivo CSV com o conteúdo:\n```\nname,email,password\nUser 1,user1@csv.com,password123\nUser 2,user2@csv.com,password123\nUser 3,user3@csv.com,password123\n```",
+			"item": [
+				{
+					"name": "Criar Importação (upload CSV)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"if (pm.response.code === 202) {",
+									"    var json = pm.response.json();",
+									"    pm.collectionVariables.set('import_id', json.data.id);",
+									"    pm.test('import_id salvo', function () {",
+									"        pm.expect(json.data.id).to.be.a('string');",
+									"    });",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Accept", "value": "application/json" }
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"description": "Arquivo CSV com colunas: name, email, password (obrigatórias)",
+									"src": ""
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/imports",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "imports"]
+						}
+					}
+				},
+				{
+					"name": "Listar Importações",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Accept", "value": "application/json" }
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/imports",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "imports"]
+						}
+					}
+				},
+				{
+					"name": "Listar Importações (filtro por status)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Accept", "value": "application/json" }
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/imports?status=completed&page=1&per_page=10",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "imports"],
+							"query": [
+								{ "key": "status", "value": "completed", "description": "queued | processing | completed | failed | partial" },
+								{ "key": "page", "value": "1" },
+								{ "key": "per_page", "value": "10" }
+							]
+						}
+					}
+				},
+				{
+					"name": "Ver Status da Importação",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Accept", "value": "application/json" }
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/imports/{{import_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "imports", "{{import_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Ver Importação inexistente (404)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Accept", "value": "application/json" }
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/imports/00000000-0000-0000-0000-000000000000",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "imports", "00000000-0000-0000-0000-000000000000"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Exports",
+			"description": "Exportação assíncrona de usuários para CSV com compressão opcional.",
+			"item": [
+				{
+					"name": "Criar Exportação (sem filtros)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"if (pm.response.code === 202) {",
+									"    var json = pm.response.json();",
+									"    pm.collectionVariables.set('export_id', json.data.id);",
+									"    pm.test('export_id salvo', function () {",
+									"        pm.expect(json.data.id).to.be.a('string');",
+									"    });",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Accept", "value": "application/json" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/exports",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "exports"]
+						}
+					}
+				},
+				{
+					"name": "Criar Exportação (com filtros)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"if (pm.response.code === 202) {",
+									"    var json = pm.response.json();",
+									"    pm.collectionVariables.set('export_id', json.data.id);",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Accept", "value": "application/json" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"filters\": {\n        \"search\": \"João\",\n        \"role\": \"user\",\n        \"state\": \"SP\",\n        \"city\": \"São Paulo\"\n    },\n    \"compressed\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/exports",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "exports"]
+						}
+					}
+				},
+				{
+					"name": "Criar Exportação (comprimida)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"if (pm.response.code === 202) {",
+									"    var json = pm.response.json();",
+									"    pm.collectionVariables.set('export_id', json.data.id);",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Accept", "value": "application/json" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"compressed\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/exports",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "exports"]
+						}
+					}
+				},
+				{
+					"name": "Ver Status da Exportação",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Accept", "value": "application/json" }
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/exports/{{export_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "exports", "{{export_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Download da Exportação",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Accept", "value": "application/json" }
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/exports/{{export_id}}/download",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "exports", "{{export_id}}", "download"]
+						}
+					}
+				},
+				{
+					"name": "Ver Exportação inexistente (404)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Accept", "value": "application/json" }
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/exports/00000000-0000-0000-0000-000000000000",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "exports", "00000000-0000-0000-0000-000000000000"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Erros & Edge Cases",
+			"description": "Testes de cenários de erro e validação.",
+			"item": [
+				{
+					"name": "Requisição sem token (401)",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "GET",
+						"header": [
+							{ "key": "Accept", "value": "application/json" }
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/users",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "users"]
+						}
+					}
+				},
+				{
+					"name": "Register sem campos (422)",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "POST",
+						"header": [
+							{ "key": "Accept", "value": "application/json" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "register"]
+						}
+					}
+				},
+				{
+					"name": "Criar Usuário com email duplicado (422)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Accept", "value": "application/json" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Duplicado\",\n    \"email\": \"admin@example.com\",\n    \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/users",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "users"]
+						}
+					}
+				},
+				{
+					"name": "Criar Usuário com role inválido (422)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Accept", "value": "application/json" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Test\",\n    \"email\": \"test.role@example.com\",\n    \"password\": \"password123\",\n    \"role\": \"superadmin\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/users",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "users"]
+						}
+					}
+				},
+				{
+					"name": "Exportação com filtros inválidos (422)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Accept", "value": "application/json" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"filters\": {\n        \"role\": \"invalido\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/exports",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "exports"]
+						}
+					}
+				},
+				{
+					"name": "Import sem arquivo (422)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Accept", "value": "application/json" }
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": []
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/imports",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "imports"]
+						}
+					}
+				}
+			]
+		}
+	]
+}
