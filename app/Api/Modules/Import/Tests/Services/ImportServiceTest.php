@@ -1,18 +1,23 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Import\Tests\Services;
 
 use App\Api\Modules\Import\Jobs\ProcessImportJob;
+use App\Api\Modules\Import\Repositories\ImportRepository;
 use App\Api\Modules\Import\Services\CsvParserService;
 use App\Api\Modules\Import\Services\ImportService;
 use App\Models\Import;
 use App\Models\User;
+use Generator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Group;
+use RuntimeException;
 use Tests\TestCase;
 
 #[Group('import')]
@@ -37,7 +42,7 @@ class ImportServiceTest extends TestCase
 
         $service = new ImportService(
             $csvParserMock,
-            app(\App\Api\Modules\Import\Repositories\ImportRepository::class),
+            app(ImportRepository::class),
         );
 
         // Act
@@ -59,11 +64,11 @@ class ImportServiceTest extends TestCase
 
         $service = new ImportService(
             app(CsvParserService::class),
-            app(\App\Api\Modules\Import\Repositories\ImportRepository::class),
+            app(ImportRepository::class),
         );
 
         // Act & Assert
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Import já está em processamento');
 
         $service->startImport($import);
@@ -75,7 +80,7 @@ class ImportServiceTest extends TestCase
         $expectedChunks = [[['name' => 'Test', 'email' => 'test@test.com', 'password' => 'pass']]];
         $filePath = '/tmp/test.csv';
 
-        $generator = (function () use ($expectedChunks): \Generator {
+        $generator = (function () use ($expectedChunks): Generator {
             foreach ($expectedChunks as $index => $chunk) {
                 yield $index => $chunk;
             }
@@ -90,7 +95,7 @@ class ImportServiceTest extends TestCase
 
         $service = new ImportService(
             $csvParserMock,
-            app(\App\Api\Modules\Import\Repositories\ImportRepository::class),
+            app(ImportRepository::class),
         );
 
         // Act
@@ -115,7 +120,7 @@ class ImportServiceTest extends TestCase
 
         $service = new ImportService(
             $csvParserMock,
-            app(\App\Api\Modules\Import\Repositories\ImportRepository::class),
+            app(ImportRepository::class),
         );
 
         // Act

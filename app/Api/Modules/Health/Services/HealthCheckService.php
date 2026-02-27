@@ -1,12 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Health\Services;
 
 use App\Api\Modules\Health\Enums\HealthStatusEnum;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Throwable;
 
 class HealthCheckService
 {
@@ -15,7 +19,7 @@ class HealthCheckService
     private const UNHEALTHY_LATENCY_MS = 5000;
 
     /**
-     * @return array{status: HealthStatusEnum, services: array<int, array{name: string, status: string, latency_ms: int|null}>, timestamp: \Illuminate\Support\Carbon}
+     * @return array{status: HealthStatusEnum, services: array<int, array{name: string, status: string, latency_ms: int|null}>, timestamp: Carbon}
      */
     public function check(): array
     {
@@ -52,7 +56,7 @@ class HealthCheckService
                 'status' => $this->serviceStatus($latency),
                 'latency_ms' => $latency,
             ];
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return [
                 'name' => 'postgresql',
                 'status' => HealthStatusEnum::Unhealthy->value,
@@ -77,7 +81,7 @@ class HealthCheckService
                 'status' => $this->serviceStatus($latency),
                 'latency_ms' => $latency,
             ];
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return [
                 'name' => 'redis',
                 'status' => HealthStatusEnum::Unhealthy->value,
@@ -102,7 +106,7 @@ class HealthCheckService
                 'status' => $this->serviceStatus($latency),
                 'latency_ms' => $latency,
             ];
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return [
                 'name' => 'storage',
                 'status' => HealthStatusEnum::Unhealthy->value,
@@ -127,7 +131,7 @@ class HealthCheckService
                 'status' => $this->serviceStatus($latency),
                 'latency_ms' => $latency,
             ];
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return [
                 'name' => 'queue',
                 'status' => HealthStatusEnum::Unhealthy->value,
@@ -137,7 +141,7 @@ class HealthCheckService
     }
 
     /**
-     * @param  array<int, array{name: string, status: string, latency_ms: int|null}>  $services
+     * @param array<int, array{name: string, status: string, latency_ms: int|null}> $services
      */
     private function determineOverallStatus(array $services): HealthStatusEnum
     {
@@ -148,6 +152,7 @@ class HealthCheckService
             if ($service['status'] === HealthStatusEnum::Unhealthy->value) {
                 $hasUnhealthy = true;
             }
+
             if ($service['status'] === HealthStatusEnum::Degraded->value) {
                 $hasDegraded = true;
             }

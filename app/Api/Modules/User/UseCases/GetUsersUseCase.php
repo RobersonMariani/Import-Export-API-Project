@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\User\UseCases;
 
 use App\Api\Modules\User\Data\UserQueryData;

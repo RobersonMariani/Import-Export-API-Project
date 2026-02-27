@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Seeders;
 
 use App\Models\Import;
@@ -50,6 +52,7 @@ class ImportSeeder extends Seeder
             ]);
 
             $failureCount = min($import->failure_count, 10);
+
             for ($i = 1; $i <= $failureCount; $i++) {
                 ImportFailure::create([
                     'import_id' => $import->id,

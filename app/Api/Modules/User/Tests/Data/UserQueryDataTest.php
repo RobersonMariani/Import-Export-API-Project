@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\User\Tests\Data;
 
 use App\Api\Modules\User\Data\UserQueryData;
@@ -72,6 +74,7 @@ class UserQueryDataTest extends TestCase
             UserQueryData::validateAndCreate($invalidItem);
         } catch (ValidationException $e) {
             $this->assertArrayHasKey($expectedField, $e->errors());
+
             throw $e;
         }
     }

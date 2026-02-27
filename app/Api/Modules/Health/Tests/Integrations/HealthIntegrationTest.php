@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Health\Tests\Integrations;
 
 use App\Api\Modules\Health\Tests\Assertables\HealthAssertableJson;

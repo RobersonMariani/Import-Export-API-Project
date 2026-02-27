@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Health\UseCases;
 
 use App\Api\Modules\Export\Repositories\ExportRepository;
@@ -29,6 +31,7 @@ class GetMetricsUseCase
     private function getQueueSizes(): array
     {
         $sizes = [];
+
         foreach (self::QUEUES as $queue) {
             $sizes[$queue] = Queue::connection()->size($queue);
         }

@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Import\Tests\Services;
 
 use App\Api\Modules\Import\Services\CsvParserService;
+use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
@@ -73,7 +76,7 @@ class CsvParserServiceTest extends TestCase
         $csvPath = $this->createCsvWithMissingHeader();
 
         // Act & Assert
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Cabeçalho obrigatório ausente');
 
         iterator_to_array($this->service->readChunks($csvPath, 1000));
@@ -109,6 +112,7 @@ class CsvParserServiceTest extends TestCase
     private function createValidCsvFile(): string
     {
         $content = "name,email,password\n";
+
         for ($i = 1; $i <= 5; $i++) {
             $content .= "User $i,user$i@test.com,pass$i\n";
         }

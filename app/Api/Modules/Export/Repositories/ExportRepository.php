@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Export\Repositories;
 
 use App\Models\Export;
+use DateTimeInterface;
 
 class ExportRepository
 {
@@ -45,9 +48,10 @@ class ExportRepository
             ->all();
     }
 
-    public function updateStatus(Export $export, string $status, ?\DateTimeInterface $finishedAt = null): Export
+    public function updateStatus(Export $export, string $status, ?DateTimeInterface $finishedAt = null): Export
     {
         $data = ['status' => $status];
+
         if ($finishedAt !== null) {
             $data['finished_at'] = $finishedAt;
         }

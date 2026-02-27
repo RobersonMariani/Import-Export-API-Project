@@ -1,6 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Support\Traits;
+
+use ValueError;
 
 /**
  * Trait utilitário para enums backed (string|int), fornecendo
@@ -57,7 +61,7 @@ trait EnumTrait
             }
         }
 
-        throw new \ValueError(sprintf('"%s" is not a valid name for enum "%s"', $name, self::class));
+        throw new ValueError(sprintf('"%s" is not a valid name for enum "%s"', $name, self::class));
     }
 
     /**
@@ -75,7 +79,7 @@ trait EnumTrait
     /**
      * Verifica se o enum está contido no array informado.
      *
-     * @param  list<self>  $cases
+     * @param list<self> $cases
      */
     public function has(array $cases): bool
     {

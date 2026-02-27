@@ -1,13 +1,17 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Auth\Resources;
 
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/** @mixin \App\Models\User */
 class UserResource extends JsonResource
 {
     /** @return array<string, mixed> */
-    public function toArray(\Illuminate\Http\Request $request): array
+    public function toArray(Request $request): array
     {
         return [
             'id' => $this->id,

@@ -1,5 +1,9 @@
 <?php
 
+declare(strict_types=1);
+
+use App\Http\Middleware\CorrelationIdMiddleware;
+use App\Http\Middleware\FeatureFlagMiddleware;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -14,13 +18,13 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->api(prepend: [
-            \App\Http\Middleware\CorrelationIdMiddleware::class,
+            CorrelationIdMiddleware::class,
         ]);
 
         $middleware->throttleApi('60,1');
 
         $middleware->alias([
-            'feature' => \App\Http\Middleware\FeatureFlagMiddleware::class,
+            'feature' => FeatureFlagMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Support\Traits;
 
 use App\Models\AuditLog;
@@ -18,6 +20,7 @@ trait Auditable
 
             $oldValues = [];
             $newValues = [];
+
             foreach ($changes as $key => $value) {
                 if ($key === 'updated_at') {
                     continue;
@@ -37,7 +40,7 @@ trait Auditable
     }
 
     /** @param array<string, mixed> $oldValues @param array<string, mixed> $newValues */
-    private static function recordAudit(mixed $model, string $event, array $oldValues, array $newValues): void
+    protected static function recordAudit(mixed $model, string $event, array $oldValues, array $newValues): void
     {
         $userId = null;
         $ipAddress = null;

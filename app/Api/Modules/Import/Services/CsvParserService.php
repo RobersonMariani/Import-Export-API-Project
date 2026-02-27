@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Import\Services;
 
 use Generator;
+use InvalidArgumentException;
 use League\Csv\Reader;
 
 class CsvParserService
@@ -49,6 +52,7 @@ class CsvParserService
         $this->validateHeaders($reader->getHeader());
 
         $count = 0;
+
         foreach ($reader->getRecords() as $_) {
             $count++;
         }
@@ -58,11 +62,13 @@ class CsvParserService
 
     /**
      * @param array<string, string> $row
+     *
      * @return array<string, string>
      */
     public function sanitizeRow(array $row): array
     {
         $result = [];
+
         foreach ($row as $key => $value) {
             $result[$this->normalizeHeader($key)] = $this->sanitizeCell((string) $value);
         }
@@ -73,11 +79,13 @@ class CsvParserService
     public function sanitizeCell(string $value): string
     {
         $trimmed = trim($value);
+
         if ($trimmed === '') {
             return $trimmed;
         }
 
         $firstChar = $trimmed[0];
+
         if (in_array($firstChar, ['=', '+', '-', '@'], true)) {
             return "'".$trimmed;
         }
@@ -92,7 +100,7 @@ class CsvParserService
 
         foreach (self::REQUIRED_HEADERS as $required) {
             if (! in_array($required, $normalized, true)) {
-                throw new \InvalidArgumentException("Cabeçalho obrigatório ausente: {$required}");
+                throw new InvalidArgumentException("Cabeçalho obrigatório ausente: {$required}");
             }
         }
     }

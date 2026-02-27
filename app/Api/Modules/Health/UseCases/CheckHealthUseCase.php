@@ -1,8 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Health\UseCases;
 
+use App\Api\Modules\Health\Enums\HealthStatusEnum;
 use App\Api\Modules\Health\Services\HealthCheckService;
+use Illuminate\Support\Carbon;
 
 class CheckHealthUseCase
 {
@@ -11,7 +15,7 @@ class CheckHealthUseCase
     ) {}
 
     /**
-     * @return array{status: \App\Api\Modules\Health\Enums\HealthStatusEnum, services: array<int, array{name: string, status: string, latency_ms: int|null}>, timestamp: \Illuminate\Support\Carbon}
+     * @return array{status: HealthStatusEnum, services: array<int, array{name: string, status: string, latency_ms: int|null}>, timestamp: Carbon}
      */
     public function execute(): array
     {

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Import\Tests\Data;
 
 use App\Api\Modules\Import\Data\CreateImportData;
@@ -71,6 +73,7 @@ class CreateImportDataTest extends TestCase
             CreateImportData::validateAndCreate($invalidItem);
         } catch (ValidationException $e) {
             $this->assertArrayHasKey($expectedField, $e->errors());
+
             throw $e;
         }
     }
@@ -84,6 +87,7 @@ class CreateImportDataTest extends TestCase
             CreateImportData::validateAndCreate([]);
         } catch (ValidationException $e) {
             $this->assertArrayHasKey('file', $e->errors());
+
             throw $e;
         }
     }

@@ -1,15 +1,23 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Health\Tests\Services;
 
 use App\Api\Modules\Health\Enums\HealthStatusEnum;
 use App\Api\Modules\Health\Services\HealthCheckService;
+use Illuminate\Cache\Repository;
+use Illuminate\Contracts\Cache\Store;
+use Illuminate\Database\Connection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
+use PDO;
+use PDOException;
 use PHPUnit\Framework\Attributes\Group;
+use RuntimeException;
 use Tests\TestCase;
 
 #[Group('health')]
@@ -18,16 +26,16 @@ class HealthCheckServiceTest extends TestCase
     public function testCheckShouldReturnHealthyWhenAllServicesRespond(): void
     {
         // Arrange
-        $pdoMock = Mockery::mock(\PDO::class);
-        $connectionMock = Mockery::mock(\Illuminate\Database\Connection::class);
+        $pdoMock = Mockery::mock(PDO::class);
+        $connectionMock = Mockery::mock(Connection::class);
         $connectionMock->shouldReceive('getPdo')->andReturn($pdoMock);
 
         DB::shouldReceive('connection')
             ->andReturn($connectionMock);
 
-        $cacheStore = Mockery::mock(\Illuminate\Contracts\Cache\Store::class);
+        $cacheStore = Mockery::mock(Store::class);
         $cacheStore->shouldReceive('get')->with('health')->andReturn(null);
-        $cacheRepository = new \Illuminate\Cache\Repository($cacheStore);
+        $cacheRepository = new Repository($cacheStore);
 
         Cache::shouldReceive('store')
             ->with('redis')
@@ -41,7 +49,7 @@ class HealthCheckServiceTest extends TestCase
         Queue::shouldReceive('connection')
             ->andReturn($queueConnection);
 
-        $service = new HealthCheckService();
+        $service = new HealthCheckService;
 
         // Act
         $result = $service->check();
@@ -65,11 +73,11 @@ class HealthCheckServiceTest extends TestCase
     {
         // Arrange
         DB::shouldReceive('connection')
-            ->andThrow(new \PDOException('Connection refused'));
+            ->andThrow(new PDOException('Connection refused'));
 
-        $cacheStore = Mockery::mock(\Illuminate\Contracts\Cache\Store::class);
+        $cacheStore = Mockery::mock(Store::class);
         $cacheStore->shouldReceive('get')->with('health')->andReturn(null);
-        $cacheRepository = new \Illuminate\Cache\Repository($cacheStore);
+        $cacheRepository = new Repository($cacheStore);
 
         Cache::shouldReceive('store')
             ->with('redis')
@@ -83,7 +91,7 @@ class HealthCheckServiceTest extends TestCase
         Queue::shouldReceive('connection')
             ->andReturn($queueConnection);
 
-        $service = new HealthCheckService();
+        $service = new HealthCheckService;
 
         // Act
         $result = $service->check();
@@ -99,8 +107,8 @@ class HealthCheckServiceTest extends TestCase
     public function testCheckShouldReturnUnhealthyWhenRedisFails(): void
     {
         // Arrange
-        $pdoMock = Mockery::mock(\PDO::class);
-        $connectionMock = Mockery::mock(\Illuminate\Database\Connection::class);
+        $pdoMock = Mockery::mock(PDO::class);
+        $connectionMock = Mockery::mock(Connection::class);
         $connectionMock->shouldReceive('getPdo')->andReturn($pdoMock);
 
         DB::shouldReceive('connection')
@@ -108,7 +116,7 @@ class HealthCheckServiceTest extends TestCase
 
         Cache::shouldReceive('store')
             ->with('redis')
-            ->andThrow(new \RuntimeException('Connection refused'));
+            ->andThrow(new RuntimeException('Connection refused'));
 
         Storage::fake('local');
 
@@ -118,7 +126,7 @@ class HealthCheckServiceTest extends TestCase
         Queue::shouldReceive('connection')
             ->andReturn($queueConnection);
 
-        $service = new HealthCheckService();
+        $service = new HealthCheckService;
 
         // Act
         $result = $service->check();

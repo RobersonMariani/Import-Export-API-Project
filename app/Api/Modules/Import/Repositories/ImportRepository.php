@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Import\Repositories;
 
 use App\Api\Modules\Import\Data\ImportQueryData;
 use App\Models\Import;
 use App\Models\ImportFailure;
+use DateTimeInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
@@ -55,9 +58,10 @@ class ImportRepository
             ]);
     }
 
-    public function updateStatus(Import $import, string $status, ?\DateTimeInterface $finishedAt = null): Import
+    public function updateStatus(Import $import, string $status, ?DateTimeInterface $finishedAt = null): Import
     {
         $data = ['status' => $status];
+
         if ($finishedAt !== null) {
             $data['finished_at'] = $finishedAt;
         }
@@ -66,7 +70,7 @@ class ImportRepository
     }
 
     /**
-     * @param  array<int, array<string, mixed>>  $failures
+     * @param array<int, array<string, mixed>> $failures
      */
     public function bulkInsertFailures(array $failures): void
     {
@@ -90,9 +94,9 @@ class ImportRepository
     }
 
     /**
-     * @param  array<int, array<string, mixed>>  $records
-     * @param  list<string>  $uniqueBy
-     * @param  list<string>  $updateColumns
+     * @param array<int, array<string, mixed>> $records
+     * @param list<string>                     $uniqueBy
+     * @param list<string>                     $updateColumns
      */
     public function bulkUpsertUsers(array $records, array $uniqueBy = ['email'], array $updateColumns = []): int
     {

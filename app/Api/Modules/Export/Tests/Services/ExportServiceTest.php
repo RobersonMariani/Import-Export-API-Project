@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Export\Tests\Services;
 
 use App\Api\Modules\Export\Repositories\ExportRepository;
@@ -7,12 +9,14 @@ use App\Api\Modules\Export\Services\ExportService;
 use App\Api\Modules\User\Repositories\UserRepository;
 use App\Models\Export;
 use App\Models\User;
+use DateTimeInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\LazyCollection;
 use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Group;
+use RuntimeException;
 use Tests\TestCase;
 
 #[Group('export')]
@@ -28,7 +32,7 @@ class ExportServiceTest extends TestCase
         $diskMock = Mockery::mock();
         $diskMock->shouldReceive('temporaryUrl')
             ->once()
-            ->with($export->file_path, Mockery::type(\DateTimeInterface::class))
+            ->with($export->file_path, Mockery::type(DateTimeInterface::class))
             ->andReturn('https://example.com/temp/download');
 
         Storage::shouldReceive('disk')
@@ -61,7 +65,7 @@ class ExportServiceTest extends TestCase
         );
 
         // Act & Assert
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Export ainda não possui arquivo disponível');
 
         $service->getTemporaryDownloadUrl($export);

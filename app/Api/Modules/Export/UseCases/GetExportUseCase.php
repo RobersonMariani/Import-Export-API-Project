@@ -1,9 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Export\UseCases;
 
 use App\Api\Modules\Export\Repositories\ExportRepository;
 use App\Models\Export;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class GetExportUseCase
 {
@@ -16,7 +19,7 @@ class GetExportUseCase
         $export = $this->exportRepository->findByIdForUser($exportId, $userId);
 
         if ($export === null) {
-            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('Export não encontrado.');
+            throw new ModelNotFoundException('Export não encontrado.');
         }
 
         return $export;

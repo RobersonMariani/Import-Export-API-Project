@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Health\Controllers;
 
 use App\Api\Modules\Health\UseCases\GetMetricsUseCase;
@@ -20,6 +22,7 @@ class MetricsController extends Controller
         $lines[] = '';
         $lines[] = '# HELP import_total Total imports by status';
         $lines[] = '# TYPE import_total counter';
+
         foreach ($metrics['import_counts'] as $status => $count) {
             $lines[] = sprintf('import_total{status="%s"} %d', $status, $count);
         }
@@ -27,6 +30,7 @@ class MetricsController extends Controller
         $lines[] = '';
         $lines[] = '# HELP export_total Total exports by status';
         $lines[] = '# TYPE export_total counter';
+
         foreach ($metrics['export_counts'] as $status => $count) {
             $lines[] = sprintf('export_total{status="%s"} %d', $status, $count);
         }
@@ -34,6 +38,7 @@ class MetricsController extends Controller
         $lines[] = '';
         $lines[] = '# HELP queue_size Number of jobs in queue';
         $lines[] = '# TYPE queue_size gauge';
+
         foreach ($metrics['queue_sizes'] as $queue => $size) {
             $lines[] = sprintf('queue_size{queue="%s"} %d', $queue, $size);
         }

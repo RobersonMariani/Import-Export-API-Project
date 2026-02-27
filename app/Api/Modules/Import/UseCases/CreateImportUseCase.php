@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Import\UseCases;
 
 use App\Api\Modules\Import\Data\CreateImportData;
@@ -8,6 +10,7 @@ use App\Api\Modules\Import\Repositories\ImportRepository;
 use App\Api\Modules\Import\Services\ImportService;
 use App\Models\Import;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 class CreateImportUseCase
 {
@@ -19,7 +22,7 @@ class CreateImportUseCase
     public function execute(CreateImportData $data, int $userId): Import
     {
         if ($userId <= 0) {
-            throw new \RuntimeException('Usuário não autenticado.');
+            throw new RuntimeException('Usuário não autenticado.');
         }
 
         return DB::transaction(function () use ($data, $userId): Import {

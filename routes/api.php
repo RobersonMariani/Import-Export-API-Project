@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Api\Modules\Auth\Controllers\AuthController;
 use App\Api\Modules\Export\Controllers\ExportController;
 use App\Api\Modules\Health\Controllers\HealthController;

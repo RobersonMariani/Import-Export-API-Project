@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\User\Repositories;
 
 use App\Api\Modules\User\Data\UserQueryData;
@@ -50,7 +52,8 @@ class UserRepository
     }
 
     /**
-     * @param  array<string, mixed>  $filters
+     * @param array<string, mixed> $filters
+     *
      * @return LazyCollection<int, User>
      */
     public function getCursorForExport(array $filters): LazyCollection

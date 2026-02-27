@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Auth\Tests\Data;
 
 use App\Api\Modules\Auth\Data\RegisterAuthData;
@@ -93,6 +95,7 @@ class RegisterAuthDataTest extends TestCase
             RegisterAuthData::validateAndCreate($invalidItem);
         } catch (ValidationException $e) {
             $this->assertArrayHasKey($expectedField, $e->errors());
+
             throw $e;
         }
     }

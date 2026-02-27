@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Export\Tests\Enums;
 
 use App\Api\Modules\Export\Enums\ExportStatusEnum;
@@ -23,7 +25,7 @@ class ExportStatusEnumTest extends TestCase
     #[DataProvider('labelProvider')]
     public function testLabelShouldReturnCorrectTranslationWhenCalled(
         ExportStatusEnum $enum,
-        string $expectedLabel
+        string $expectedLabel,
     ): void {
         // Act
         $result = $enum->label();

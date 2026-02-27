@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Auth\Tests\Data;
 
 use App\Api\Modules\Auth\Data\LoginAuthData;
@@ -59,6 +61,7 @@ class LoginAuthDataTest extends TestCase
             LoginAuthData::validateAndCreate($invalidItem);
         } catch (ValidationException $e) {
             $this->assertArrayHasKey($expectedField, $e->errors());
+
             throw $e;
         }
     }

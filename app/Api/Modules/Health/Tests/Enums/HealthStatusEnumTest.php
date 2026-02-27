@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Health\Tests\Enums;
 
 use App\Api\Modules\Health\Enums\HealthStatusEnum;
@@ -22,7 +24,7 @@ class HealthStatusEnumTest extends TestCase
     #[DataProvider('labelProvider')]
     public function testLabelShouldReturnCorrectTranslationWhenCalled(
         HealthStatusEnum $enum,
-        string $expectedLabel
+        string $expectedLabel,
     ): void {
         // Act
         $result = $enum->label();

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Export\Enums;
 
 use App\Api\Support\Traits\EnumTrait;

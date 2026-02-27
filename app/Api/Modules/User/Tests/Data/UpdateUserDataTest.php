@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\User\Tests\Data;
 
 use App\Api\Modules\User\Data\UpdateUserData;
@@ -73,6 +75,7 @@ class UpdateUserDataTest extends TestCase
             UpdateUserData::validateAndCreate($invalidItem);
         } catch (ValidationException $e) {
             $this->assertArrayHasKey($expectedField, $e->errors());
+
             throw $e;
         }
     }
@@ -110,6 +113,7 @@ class UpdateUserDataTest extends TestCase
             UpdateUserData::validateAndCreate($payload);
         } catch (ValidationException $e) {
             $this->assertArrayHasKey('email', $e->errors());
+
             throw $e;
         }
     }

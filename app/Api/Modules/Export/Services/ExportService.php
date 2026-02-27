@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Export\Services;
 
 use App\Api\Modules\Export\Repositories\ExportRepository;
@@ -9,6 +11,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\LazyCollection;
 use League\Csv\Writer;
+use RuntimeException;
 
 class ExportService
 {
@@ -46,12 +49,12 @@ class ExportService
     public function getTemporaryDownloadUrl(Export $export): string
     {
         if ($export->file_path === null) {
-            throw new \RuntimeException('Export ainda não possui arquivo disponível');
+            throw new RuntimeException('Export ainda não possui arquivo disponível');
         }
 
         return Storage::disk('local')->temporaryUrl(
             $export->file_path,
-            now()->addMinutes(15)
+            now()->addMinutes(15),
         );
     }
 
@@ -73,7 +76,7 @@ class ExportService
         ];
     }
 
-    /** @return array<int, string|null> */
+    /** @return array<int, int|string|null> */
     private function userToCsvRow(User $user): array
     {
         return [
@@ -92,7 +95,7 @@ class ExportService
     }
 
     /**
-     * @param  LazyCollection<int, User>  $cursor
+     * @param LazyCollection<int, User> $cursor
      */
     private function writeCsv(LazyCollection $cursor, string $fullPath): int
     {
@@ -100,6 +103,7 @@ class ExportService
         $writer->insertOne($this->getCsvHeaders());
 
         $count = 0;
+
         foreach ($cursor as $user) {
             $writer->insertOne($this->userToCsvRow($user));
             $count++;
@@ -109,7 +113,7 @@ class ExportService
     }
 
     /**
-     * @param  LazyCollection<int, User>  $cursor
+     * @param LazyCollection<int, User> $cursor
      */
     private function writeCsvToGzip(LazyCollection $cursor, string $fullPath): int
     {
@@ -117,22 +121,25 @@ class ExportService
         $count = $this->writeCsv($cursor, $tempCsvPath);
 
         $stream = gzopen($fullPath, 'w9');
+
         if ($stream === false) {
             unlink($tempCsvPath);
 
-            throw new \RuntimeException('Não foi possível criar arquivo gzip');
+            throw new RuntimeException('Não foi possível criar arquivo gzip');
         }
 
         $handle = fopen($tempCsvPath, 'r');
+
         if ($handle === false) {
             gzclose($stream);
             unlink($tempCsvPath);
 
-            throw new \RuntimeException('Não foi possível ler arquivo CSV temporário');
+            throw new RuntimeException('Não foi possível ler arquivo CSV temporário');
         }
 
         while (! feof($handle)) {
             $chunk = fread($handle, 8192);
+
             if ($chunk !== false) {
                 gzwrite($stream, $chunk);
             }
@@ -148,6 +155,7 @@ class ExportService
     private function ensureExportsDirectoryExists(): void
     {
         $path = Storage::path(self::EXPORTS_DIR);
+
         if (! is_dir($path)) {
             mkdir($path, 0755, true);
         }

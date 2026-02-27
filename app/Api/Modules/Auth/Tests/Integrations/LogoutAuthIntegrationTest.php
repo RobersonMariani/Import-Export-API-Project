@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Auth\Tests\Integrations;
 
 use App\Models\User;

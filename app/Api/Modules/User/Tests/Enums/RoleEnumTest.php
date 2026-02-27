@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\User\Tests\Enums;
 
 use App\Api\Modules\User\Enums\RoleEnum;
@@ -22,7 +24,7 @@ class RoleEnumTest extends TestCase
     #[DataProvider('labelProvider')]
     public function testLabelShouldReturnCorrectTranslationWhenCalled(
         RoleEnum $enum,
-        string $expectedLabel
+        string $expectedLabel,
     ): void {
         // Act
         $result = $enum->label();

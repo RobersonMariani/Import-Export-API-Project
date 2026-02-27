@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Export\Tests\Data;
 
 use App\Api\Modules\Export\Data\ExportFiltersData;
@@ -11,7 +13,6 @@ use Tests\TestCase;
 #[Group('export')]
 class ExportFiltersDataTest extends TestCase
 {
-
     public static function validData(): array
     {
         return [
@@ -64,6 +65,7 @@ class ExportFiltersDataTest extends TestCase
             ExportFiltersData::validateAndCreate($invalidItem);
         } catch (ValidationException $e) {
             $this->assertArrayHasKey($expectedField, $e->errors());
+
             throw $e;
         }
     }

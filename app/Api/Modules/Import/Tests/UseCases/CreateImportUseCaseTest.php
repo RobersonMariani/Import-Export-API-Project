@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Import\Tests\UseCases;
 
 use App\Api\Modules\Import\Data\CreateImportData;
 use App\Api\Modules\Import\Repositories\ImportRepository;
 use App\Api\Modules\Import\Services\ImportService;
+use App\Api\Modules\Import\UseCases\CreateImportUseCase;
 use App\Models\Import;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -13,6 +16,7 @@ use Illuminate\Support\Facades\Storage;
 use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Group;
+use RuntimeException;
 use Tests\TestCase;
 
 #[Group('import')]
@@ -63,7 +67,7 @@ class CreateImportUseCaseTest extends TestCase
         );
 
         // Act
-        $useCase = app()->make(\App\Api\Modules\Import\UseCases\CreateImportUseCase::class);
+        $useCase = app()->make(CreateImportUseCase::class);
         $result = $useCase->execute($data, $user->id);
 
         // Assert
@@ -78,10 +82,10 @@ class CreateImportUseCaseTest extends TestCase
         $data = CreateImportData::validateAndCreate(['file' => $file]);
 
         // Act & Assert
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Usuário não autenticado.');
 
-        $useCase = app()->make(\App\Api\Modules\Import\UseCases\CreateImportUseCase::class);
+        $useCase = app()->make(CreateImportUseCase::class);
         $useCase->execute($data, 0);
     }
 }

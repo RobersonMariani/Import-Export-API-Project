@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Export\Tests\Jobs;
 
 use App\Api\Modules\Export\Jobs\ProcessExportJob;

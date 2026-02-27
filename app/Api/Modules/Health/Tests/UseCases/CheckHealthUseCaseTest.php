@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Health\Tests\UseCases;
 
 use App\Api\Modules\Health\Enums\HealthStatusEnum;

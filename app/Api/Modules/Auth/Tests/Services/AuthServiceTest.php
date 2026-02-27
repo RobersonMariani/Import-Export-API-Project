@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Auth\Tests\Services;
 
 use App\Api\Modules\Auth\Services\AuthService;
 use App\Models\User;
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
-use Illuminate\Contracts\Auth\Guard;
 use Mockery;
+use PHPOpenSourceSaver\JWTAuth\JWTGuard;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
@@ -17,7 +19,7 @@ class AuthServiceTest extends TestCase
     public function testAttemptShouldReturnTokenWhenCredentialsAreValid(): void
     {
         // Arrange
-        $guard = Mockery::mock(Guard::class, function (MockInterface $mock) {
+        $guard = Mockery::mock(JWTGuard::class, function (MockInterface $mock) {
             $mock->shouldReceive('attempt')
                 ->once()
                 ->with(['email' => 'test@example.com', 'password' => 'password'])
@@ -42,7 +44,7 @@ class AuthServiceTest extends TestCase
     public function testAttemptShouldReturnNullWhenCredentialsAreInvalid(): void
     {
         // Arrange
-        $guard = Mockery::mock(Guard::class, function (MockInterface $mock) {
+        $guard = Mockery::mock(JWTGuard::class, function (MockInterface $mock) {
             $mock->shouldReceive('attempt')
                 ->once()
                 ->andReturn(false);
@@ -68,7 +70,7 @@ class AuthServiceTest extends TestCase
         // Arrange
         $user = new User(['id' => 1, 'email' => 'test@example.com']);
 
-        $guard = Mockery::mock(Guard::class, function (MockInterface $mock) use ($user) {
+        $guard = Mockery::mock(JWTGuard::class, function (MockInterface $mock) use ($user) {
             $mock->shouldReceive('login')
                 ->once()
                 ->with($user)
@@ -109,7 +111,7 @@ class AuthServiceTest extends TestCase
         // Arrange
         $user = new User(['id' => 1, 'name' => 'Test', 'email' => 'test@example.com']);
 
-        $guard = Mockery::mock(Guard::class, function (MockInterface $mock) use ($user) {
+        $guard = Mockery::mock(JWTGuard::class, function (MockInterface $mock) use ($user) {
             $mock->shouldReceive('user')
                 ->once()
                 ->andReturn($user);
@@ -134,7 +136,7 @@ class AuthServiceTest extends TestCase
     public function testUserShouldReturnNullWhenNotAuthenticated(): void
     {
         // Arrange
-        $guard = Mockery::mock(Guard::class, function (MockInterface $mock) {
+        $guard = Mockery::mock(JWTGuard::class, function (MockInterface $mock) {
             $mock->shouldReceive('user')
                 ->once()
                 ->andReturn(null);
@@ -158,7 +160,7 @@ class AuthServiceTest extends TestCase
     public function testRefreshShouldReturnNewTokenWhenCalled(): void
     {
         // Arrange
-        $guard = Mockery::mock(Guard::class, function (MockInterface $mock) {
+        $guard = Mockery::mock(JWTGuard::class, function (MockInterface $mock) {
             $mock->shouldReceive('refresh')
                 ->once()
                 ->andReturn('refreshed-token-789');
@@ -182,7 +184,7 @@ class AuthServiceTest extends TestCase
     public function testLogoutShouldCallGuardLogoutWhenCalled(): void
     {
         // Arrange
-        $guard = Mockery::mock(Guard::class, function (MockInterface $mock) {
+        $guard = Mockery::mock(JWTGuard::class, function (MockInterface $mock) {
             $mock->shouldReceive('logout')
                 ->once();
         });

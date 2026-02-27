@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Support\Services;
 
 use App\Api\Modules\Import\Repositories\ImportRepository;
@@ -30,7 +32,7 @@ class ImportStatusCacheService
                 }
 
                 return $this->toStatusArray($import);
-            }
+            },
         );
     }
 
@@ -44,7 +46,7 @@ class ImportStatusCacheService
         Cache::store('redis')->put(
             self::CACHE_PREFIX.$import->id,
             $this->toStatusArray($import),
-            self::CACHE_TTL
+            self::CACHE_TTL,
         );
     }
 

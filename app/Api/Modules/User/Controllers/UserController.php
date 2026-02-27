@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\User\Controllers;
 
 use App\Api\Modules\User\Data\CreateUserData;
@@ -12,6 +14,7 @@ use App\Api\Modules\User\UseCases\GetUsersUseCase;
 use App\Api\Modules\User\UseCases\GetUserUseCase;
 use App\Api\Modules\User\UseCases\UpdateUserUseCase;
 use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Symfony\Component\HttpFoundation\Response;
@@ -46,7 +49,7 @@ class UserController extends Controller
         return UserResource::make($useCase->execute($user, $data));
     }
 
-    public function destroy(int $user, DeleteUserUseCase $useCase): \Illuminate\Http\JsonResponse
+    public function destroy(int $user, DeleteUserUseCase $useCase): JsonResponse
     {
         $useCase->execute($user);
 

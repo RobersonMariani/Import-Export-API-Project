@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Import\Services;
 
 use App\Api\Modules\Import\Events\ImportBatchCompletedEvent;
@@ -7,10 +9,13 @@ use App\Api\Modules\Import\Jobs\ProcessImportChunkJob;
 use App\Api\Modules\Import\Jobs\ProcessImportJob;
 use App\Api\Modules\Import\Repositories\ImportRepository;
 use App\Models\Import;
+use Generator;
 use Illuminate\Bus\Batch;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
+use RuntimeException;
+use Throwable;
 
 class ImportService
 {
@@ -31,9 +36,9 @@ class ImportService
     }
 
     /**
-     * @return \Generator<int, array<int, array<string, string>>>
+     * @return Generator<int, array<int, array<string, string>>>
      */
-    public function getChunks(string $filePath, int $chunkSize = 1000): \Generator
+    public function getChunks(string $filePath, int $chunkSize = 1000): Generator
     {
         return $this->csvParserService->readChunks($filePath, $chunkSize);
     }
@@ -49,6 +54,7 @@ class ImportService
     public function dispatchChunkBatch(Import $import, iterable $chunks): Batch
     {
         $jobs = [];
+
         foreach ($chunks as $index => $chunk) {
             $jobs[] = new ProcessImportChunkJob($import->id, $chunk, $index);
         }
@@ -60,7 +66,7 @@ class ImportService
             ->then(function (Batch $batch) use ($import): void {
                 Event::dispatch(new ImportBatchCompletedEvent($import->refresh(), $batch));
             })
-            ->catch(function (Batch $batch, \Throwable $e) use ($import): void {
+            ->catch(function (Batch $batch, Throwable $e) use ($import): void {
                 $this->handleBatchFailure($import, $batch, $e);
             })
             ->finally(function (Batch $batch) use ($import): void {
@@ -69,9 +75,10 @@ class ImportService
             ->dispatch();
     }
 
-    public function handleBatchFailure(Import $import, Batch $batch, \Throwable $e): void
+    public function handleBatchFailure(Import $import, Batch $batch, Throwable $e): void
     {
         $refreshed = $this->importRepository->findById($import->id);
+
         if ($refreshed !== null) {
             $metadata = array_merge($refreshed->metadata ?? [], ['batch_error' => $e->getMessage()]);
             $this->importRepository->update($refreshed, ['metadata' => $metadata]);
@@ -81,8 +88,9 @@ class ImportService
     private function ensureConcurrencyControl(Import $import): void
     {
         $lockKey = self::CONCURRENCY_LOCK_PREFIX.$import->id;
+
         if (Cache::has($lockKey)) {
-            throw new \RuntimeException('Import já está em processamento');
+            throw new RuntimeException('Import já está em processamento');
         }
 
         Cache::put($lockKey, true, self::LOCK_TTL_SECONDS);

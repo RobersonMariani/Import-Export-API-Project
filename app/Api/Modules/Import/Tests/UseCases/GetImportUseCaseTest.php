@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Import\Tests\UseCases;
 
 use App\Api\Modules\Import\Repositories\ImportRepository;

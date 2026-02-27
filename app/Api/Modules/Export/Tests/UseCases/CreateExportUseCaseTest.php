@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Export\Tests\UseCases;
 
 use App\Api\Modules\Export\Data\CreateExportData;
+use App\Api\Modules\Export\Jobs\ProcessExportJob;
 use App\Api\Modules\Export\Repositories\ExportRepository;
 use App\Api\Modules\Export\UseCases\CreateExportUseCase;
 use App\Models\Export;
@@ -82,7 +85,7 @@ class CreateExportUseCaseTest extends TestCase
         $useCase->execute($data, $user->id);
 
         // Assert
-        Bus::assertDispatched(\App\Api\Modules\Export\Jobs\ProcessExportJob::class, function ($job) use ($expectedExport) {
+        Bus::assertDispatched(ProcessExportJob::class, function ($job) use ($expectedExport) {
             return $job->exportId === $expectedExport->id;
         });
     }

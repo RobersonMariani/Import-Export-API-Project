@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Support\Services;
 
 use App\Api\Modules\Export\Repositories\ExportRepository;
@@ -30,7 +32,7 @@ class ExportStatusCacheService
                 }
 
                 return $this->toStatusArray($export);
-            }
+            },
         );
     }
 
@@ -44,7 +46,7 @@ class ExportStatusCacheService
         Cache::store('redis')->put(
             self::CACHE_PREFIX.$export->id,
             $this->toStatusArray($export),
-            self::CACHE_TTL
+            self::CACHE_TTL,
         );
     }
 
@@ -56,9 +58,14 @@ class ExportStatusCacheService
             'status' => $export->status,
             'total_records' => $export->total_records,
             'compressed' => $export->compressed,
-            'started_at' => $export->started_at?->toIso8601String(),
-            'finished_at' => $export->finished_at?->toIso8601String(),
-            'expires_at' => $export->expires_at?->toIso8601String(),
+            'started_at' => $this->formatDate($export->started_at),
+            'finished_at' => $this->formatDate($export->finished_at),
+            'expires_at' => $this->formatDate($export->expires_at),
         ];
+    }
+
+    private function formatDate(mixed $value): ?string
+    {
+        return $value instanceof \Carbon\CarbonInterface ? $value->toIso8601String() : null;
     }
 }

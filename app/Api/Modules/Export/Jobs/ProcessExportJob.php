@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Export\Jobs;
 
 use App\Api\Modules\Export\Enums\ExportStatusEnum;
@@ -10,6 +12,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Throwable;
 
 class ProcessExportJob implements ShouldQueue
 {
@@ -26,6 +29,7 @@ class ProcessExportJob implements ShouldQueue
     public function handle(ExportRepository $exportRepository, ExportService $exportService): void
     {
         $export = $exportRepository->findById($this->exportId);
+
         if ($export === null) {
             return;
         }
@@ -36,7 +40,7 @@ class ProcessExportJob implements ShouldQueue
         try {
             $exportService->processExport($export->refresh());
             $exportRepository->updateStatus($export->refresh(), ExportStatusEnum::Completed->value, now());
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $exportRepository->updateStatus($export->refresh(), ExportStatusEnum::Failed->value, now());
 
             throw $e;

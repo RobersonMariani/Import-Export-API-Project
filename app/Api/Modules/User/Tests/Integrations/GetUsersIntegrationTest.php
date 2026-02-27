@@ -1,11 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\User\Tests\Integrations;
 
-use App\Api\Modules\User\Tests\Assertables\UserAssertableJson;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Testing\Fluent\AssertableJson;
 use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 

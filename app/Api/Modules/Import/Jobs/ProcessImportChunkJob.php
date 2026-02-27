@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Import\Jobs;
 
 use App\Api\Modules\Import\Events\ChunkProcessedEvent;
@@ -13,6 +15,8 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
+use InvalidArgumentException;
+use Throwable;
 
 class ProcessImportChunkJob implements ShouldQueue
 {
@@ -43,6 +47,7 @@ class ProcessImportChunkJob implements ShouldQueue
         }
 
         $import = $importRepository->findById($this->importId);
+
         if ($import === null) {
             return;
         }
@@ -62,18 +67,21 @@ class ProcessImportChunkJob implements ShouldQueue
 
             try {
                 $email = trim($row['email'] ?? '');
+
                 if ($email === '') {
-                    throw new \InvalidArgumentException('Email é obrigatório');
+                    throw new InvalidArgumentException('Email é obrigatório');
                 }
 
                 $name = trim($row['name'] ?? '');
+
                 if ($name === '') {
-                    throw new \InvalidArgumentException('Name é obrigatório');
+                    throw new InvalidArgumentException('Name é obrigatório');
                 }
 
                 $password = trim($row['password'] ?? '');
+
                 if ($password === '') {
-                    throw new \InvalidArgumentException('Password é obrigatório');
+                    throw new InvalidArgumentException('Password é obrigatório');
                 }
 
                 $upsertRecords[] = [
@@ -91,7 +99,7 @@ class ProcessImportChunkJob implements ShouldQueue
                     'updated_at' => $now,
                 ];
                 $successCount++;
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 $failureCount++;
                 $failures[] = [
                     'import_id' => $this->importId,

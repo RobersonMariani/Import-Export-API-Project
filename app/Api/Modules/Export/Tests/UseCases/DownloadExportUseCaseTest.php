@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Export\Tests\UseCases;
 
 use App\Api\Modules\Export\Enums\ExportStatusEnum;
@@ -13,6 +15,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Group;
+use RuntimeException;
 use Tests\TestCase;
 
 #[Group('export')]
@@ -88,7 +91,7 @@ class DownloadExportUseCaseTest extends TestCase
         );
 
         // Act & Assert
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Export ainda não está disponível para download.');
 
         $useCase = app()->make(DownloadExportUseCase::class);
@@ -116,7 +119,7 @@ class DownloadExportUseCaseTest extends TestCase
         );
 
         // Act & Assert
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Arquivo de export não encontrado.');
 
         $useCase = app()->make(DownloadExportUseCase::class);

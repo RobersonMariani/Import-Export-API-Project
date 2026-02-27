@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\User\Tests\Integrations;
 
 use App\Api\Modules\User\Tests\Assertables\UserAssertableJson;

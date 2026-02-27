@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Auth\Tests\UseCases;
 
 use App\Api\Modules\Auth\Data\RegisterAuthData;
@@ -44,7 +46,7 @@ class RegisterAuthUseCaseTest extends TestCase
 
         $this->instance(
             AuthService::class,
-            Mockery::mock(AuthService::class, function (MockInterface $mock) use ($user) {
+            Mockery::mock(AuthService::class, function (MockInterface $mock) {
                 $mock->shouldReceive('loginUser')
                     ->once()
                     ->with(Mockery::type(User::class))

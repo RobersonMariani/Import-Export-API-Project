@@ -1,9 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Auth\Services;
 
 use App\Models\User;
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
+use PHPOpenSourceSaver\JWTAuth\JWTGuard;
 
 class AuthService
 {
@@ -11,9 +14,12 @@ class AuthService
         private readonly AuthFactory $auth,
     ) {}
 
-    private function guard(): \Illuminate\Contracts\Auth\Guard
+    private function guard(): JWTGuard
     {
-        return $this->auth->guard('api');
+        /** @var JWTGuard $guard */
+        $guard = $this->auth->guard('api');
+
+        return $guard;
     }
 
     /** @param  array<string, string>  $credentials */

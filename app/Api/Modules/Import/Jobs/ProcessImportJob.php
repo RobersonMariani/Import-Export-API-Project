@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Import\Jobs;
 
 use App\Api\Modules\Import\Enums\ImportStatusEnum;
@@ -26,6 +28,7 @@ class ProcessImportJob implements ShouldQueue
     public function handle(ImportRepository $importRepository, ImportService $importService): void
     {
         $import = $importRepository->findById($this->importId);
+
         if ($import === null) {
             return;
         }

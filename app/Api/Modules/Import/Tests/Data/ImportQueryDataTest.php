@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Import\Tests\Data;
 
 use App\Api\Modules\Import\Data\ImportQueryData;
@@ -62,6 +64,7 @@ class ImportQueryDataTest extends TestCase
             ImportQueryData::validateAndCreate($invalidItem);
         } catch (ValidationException $e) {
             $this->assertArrayHasKey($expectedField, $e->errors());
+
             throw $e;
         }
     }

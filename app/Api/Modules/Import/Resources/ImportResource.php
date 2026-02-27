@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Import\Resources;
 
 use App\Api\Modules\Import\Enums\ImportStatusEnum;
@@ -7,6 +9,7 @@ use App\Models\Import;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/** @mixin \App\Models\Import */
 class ImportResource extends JsonResource
 {
     /** @return array<string, mixed> */
@@ -28,11 +31,11 @@ class ImportResource extends JsonResource
             'success_count' => $import->success_count ?? 0,
             'failure_count' => $import->failure_count ?? 0,
             'original_filename' => $import->original_filename,
-            'started_at' => $import->started_at?->toIso8601String(),
-            'finished_at' => $import->finished_at?->toIso8601String(),
+            'started_at' => $this->formatDate($import->started_at),
+            'finished_at' => $this->formatDate($import->finished_at),
             'processing_time_seconds' => $processingTime,
             'estimated_remaining_seconds' => $estimatedRemaining,
-            'created_at' => $import->created_at?->toIso8601String(),
+            'created_at' => $this->formatDate($import->created_at),
         ];
     }
 
@@ -70,5 +73,10 @@ class ImportResource extends JsonResource
         $remaining = $totalRecords - $progress;
 
         return (int) ceil($remaining / $recordsPerSecond);
+    }
+
+    private function formatDate(mixed $value): ?string
+    {
+        return $value instanceof \Carbon\CarbonInterface ? $value->toIso8601String() : null;
     }
 }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Api\Modules\Import\Tests\Jobs;
 
 use App\Api\Modules\Import\Jobs\ProcessImportChunkJob;
@@ -9,7 +11,6 @@ use Tests\TestCase;
 #[Group('import')]
 class ProcessImportChunkJobTest extends TestCase
 {
-
     public function testJobShouldHaveCorrectConfiguration(): void
     {
         // Arrange & Act
