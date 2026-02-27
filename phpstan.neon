@@ -1,0 +1,27 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    paths:
+        - app/
+    level: 5
+    excludePaths:
+        - _ide_helper.php
+        - _ide_helper_models.php
+    ignoreErrors:
+        # Mockery fluent methods not recognized by PHPStan
+        -
+            message: '#Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage::#'
+            path: app/Api/Modules/*/Tests/*
+        # JWT guard login() returns token string, not void like StatefulGuard
+        -
+            message: '#Result of method Illuminate\\Contracts\\Auth\\StatefulGuard::login\(\) \(void\) is used#'
+            path: app/Api/Modules/*/Tests/*
+        # Mockery mocks typed as MockInterface instead of concrete class
+        -
+            message: '#expects .+, Mockery\\MockInterface given#'
+            path: app/Api/Modules/*/Tests/*
+        # PHPUnit assertions on already-narrowed types from PHPDoc
+        -
+            message: '#will always evaluate to true#'
+            path: app/Api/Modules/*/Tests/*
