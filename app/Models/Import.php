@@ -26,6 +26,7 @@ use Illuminate\Support\Carbon;
  * @property string                    $file_path
  * @property string                    $original_filename
  * @property array<string, mixed>|null $metadata
+ * @property string|null               $error_message
  * @property Carbon|null               $started_at
  * @property Carbon|null               $finished_at
  * @property Carbon|null               $created_at
@@ -74,6 +75,7 @@ class Import extends Model
         'file_path',
         'original_filename',
         'metadata',
+        'error_message',
         'started_at',
         'finished_at',
     ];

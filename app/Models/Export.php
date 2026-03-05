@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string                       $status
  * @property string|null                  $file_path
  * @property array<array-key, mixed>|null $filters
+ * @property string|null                  $error_message
  * @property int                          $total_records
  * @property bool                         $compressed
  * @property \Illuminate\Support\Carbon|null $expires_at
@@ -62,6 +63,7 @@ class Export extends Model
         'status',
         'file_path',
         'filters',
+        'error_message',
         'total_records',
         'compressed',
         'expires_at',

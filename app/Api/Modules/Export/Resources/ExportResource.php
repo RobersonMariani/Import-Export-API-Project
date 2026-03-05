@@ -29,6 +29,7 @@ class ExportResource extends JsonResource
             'total_records' => $export->total_records ?? 0,
             'compressed' => $export->compressed ?? false,
             'file_path' => $export->status === ExportStatusEnum::Completed->value ? $export->file_path : null,
+            'error_message' => $export->error_message,
             'download_url' => $this->additional['download_url'] ?? null,
             'expires_at' => $this->formatDate($export->expires_at),
             'started_at' => $this->formatDate($export->started_at),

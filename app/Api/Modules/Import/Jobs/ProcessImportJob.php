@@ -15,11 +15,20 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Throwable;
 
 class ProcessImportJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    public int $tries = 3;
+
+    public int $timeout = 600;
+
+    /** @var list<int> */
+    public array $backoff = [10, 30, 60];
 
     public function __construct(
         public string $importId,
@@ -52,5 +61,28 @@ class ProcessImportJob implements ShouldQueue
 
         $chunks = $importService->getChunks($fullPath, 1000);
         $importService->dispatchChunkBatch($import->refresh(), $chunks);
+    }
+
+    public function failed(Throwable $exception): void
+    {
+        Log::error('ProcessImportJob failed permanently', [
+            'import_id' => $this->importId,
+            'error' => $exception->getMessage(),
+        ]);
+
+        $importRepository = app(ImportRepository::class);
+        $import = $importRepository->findById($this->importId);
+
+        if ($import === null) {
+            return;
+        }
+
+        $importRepository->update($import, [
+            'status' => ImportStatusEnum::Failed->value,
+            'error_message' => mb_substr($exception->getMessage(), 0, 2000),
+            'finished_at' => now(),
+        ]);
+
+        Cache::forget('import:processing:'.$this->importId);
     }
 }

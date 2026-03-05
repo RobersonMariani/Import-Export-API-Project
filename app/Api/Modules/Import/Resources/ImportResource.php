@@ -31,6 +31,7 @@ class ImportResource extends JsonResource
             'success_count' => $import->success_count ?? 0,
             'failure_count' => $import->failure_count ?? 0,
             'original_filename' => $import->original_filename,
+            'error_message' => $import->error_message,
             'started_at' => $this->formatDate($import->started_at),
             'finished_at' => $this->formatDate($import->finished_at),
             'processing_time_seconds' => $processingTime,
