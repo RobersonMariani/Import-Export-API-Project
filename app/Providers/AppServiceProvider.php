@@ -36,15 +36,15 @@ class AppServiceProvider extends ServiceProvider
         });
 
         RateLimiter::for('api-read', function (Request $request) {
-            return Limit::perMinute(2000)->by($request->user()?->getKey() ?: $request->ip());
+            return Limit::perMinute(3000)->by($request->user()?->getKey() ?: $request->ip());
         });
 
         RateLimiter::for('api-write', function (Request $request) {
-            return Limit::perMinute(1000)->by($request->user()?->getKey() ?: $request->ip());
+            return Limit::perMinute(1500)->by($request->user()?->getKey() ?: $request->ip());
         });
 
         RateLimiter::for('api-upload', function (Request $request) {
-            return Limit::perMinute(1000)->by($request->user()?->getKey() ?: $request->ip());
+            return Limit::perMinute(3000)->by($request->user()?->getKey() ?: $request->ip());
         });
 
         RateLimiter::for('monitoring', function (Request $request) {

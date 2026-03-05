@@ -155,31 +155,39 @@ upload_one() {
   local idx=$1
   local csv_file="${TMP_DIR}/import_${idx}.csv"
   local result_file="${TMP_DIR}/result_${idx}.json"
-  local max_retries=3
+  local max_retries=10
   local attempt=0
 
   while [ $attempt -lt $max_retries ]; do
     attempt=$((attempt + 1))
 
     http_code=$(curl -s -w "%{http_code}" -o "$result_file" \
+      --connect-timeout 30 --max-time 120 \
       -X POST "${API_URL}/imports" \
       -H "Authorization: Bearer ${TOKEN}" \
       -H "Accept: application/json" \
       -F "file=@${csv_file}" 2>/dev/null)
 
     if [ "$http_code" = "429" ]; then
-      local wait=$((attempt * 2))
-      sleep "$wait"
+      local base_wait=$((attempt * 2))
+      local jitter=$((RANDOM % 3))
+      sleep $((base_wait + jitter))
       continue
     fi
 
-    if [ "$http_code" = "201" ] || [ "$http_code" = "200" ]; then
+    if [ "$http_code" = "200" ] || [ "$http_code" = "201" ] || [ "$http_code" = "202" ]; then
       return 0
+    fi
+
+    if [ "$http_code" = "000" ]; then
+      sleep $((attempt + RANDOM % 3))
+      continue
     fi
 
     sleep 1
   done
 
+  fail "Import #${idx} falhou após ${max_retries} tentativas (último HTTP: ${http_code})"
   return 1
 }
 
