@@ -14,7 +14,6 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\Hash;
 use InvalidArgumentException;
 use Throwable;
 
@@ -87,7 +86,7 @@ class ProcessImportChunkJob implements ShouldQueue
                 $upsertRecords[] = [
                     'name' => $name,
                     'email' => $email,
-                    'password' => Hash::make($password),
+                    'password' => password_hash($password, PASSWORD_BCRYPT, ['cost' => 4]),
                     'phone' => $row['phone'] ?? null,
                     'address' => $row['address'] ?? null,
                     'city' => $row['city'] ?? null,

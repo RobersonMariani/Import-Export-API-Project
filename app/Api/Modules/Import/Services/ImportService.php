@@ -49,7 +49,15 @@ class ImportService
     }
 
     /**
-     * @param iterable<int, array<int, array<string, string>>> $chunks
+     * @return array{total: int, chunks: list<list<array<string, string>>>}
+     */
+    public function parseFile(string $filePath, int $chunkSize = 1000): array
+    {
+        return $this->csvParserService->readAllChunks($filePath, $chunkSize);
+    }
+
+    /**
+     * @param iterable<int, array<int, array<string, string>>>|list<list<array<string, string>>> $chunks
      */
     public function dispatchChunkBatch(Import $import, iterable $chunks): Batch
     {

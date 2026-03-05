@@ -52,15 +52,18 @@ class ProcessImportJob implements ShouldQueue
         }
 
         $importRepository->updateStatus($import, ImportStatusEnum::Processing->value);
+
+        $chunkSize = (int) config('features.import.chunk_size', 1000);
+        $parsed = $importService->parseFile($fullPath, $chunkSize);
+
         $importRepository->update($import, [
-            'total_records' => $importService->getTotalRecords($fullPath),
+            'total_records' => $parsed['total'],
             'started_at' => now(),
         ]);
 
         Event::dispatch(new ImportStartedEvent($import->refresh()));
 
-        $chunks = $importService->getChunks($fullPath, 1000);
-        $importService->dispatchChunkBatch($import->refresh(), $chunks);
+        $importService->dispatchChunkBatch($import->refresh(), $parsed['chunks']);
     }
 
     public function failed(Throwable $exception): void

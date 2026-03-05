@@ -61,6 +61,37 @@ class CsvParserService
     }
 
     /**
+     * @return array{total: int, chunks: list<list<array<string, string>>>}
+     */
+    public function readAllChunks(string $filePath, int $chunkSize = 1000): array
+    {
+        $reader = Reader::createFromPath($filePath);
+        $reader->setHeaderOffset(0);
+
+        $this->validateHeaders($reader->getHeader());
+
+        $chunks = [];
+        $chunk = [];
+        $total = 0;
+
+        foreach ($reader->getRecords() as $record) {
+            $chunk[] = $this->sanitizeRow($record);
+            $total++;
+
+            if (count($chunk) >= $chunkSize) {
+                $chunks[] = $chunk;
+                $chunk = [];
+            }
+        }
+
+        if (! empty($chunk)) {
+            $chunks[] = $chunk;
+        }
+
+        return ['total' => $total, 'chunks' => $chunks];
+    }
+
+    /**
      * @param array<string, string> $row
      *
      * @return array<string, string>
