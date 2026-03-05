@@ -69,7 +69,7 @@ Após o setup, a API estará disponível em `http://localhost:8080`.
 | Grafana    | http://localhost:3000 | Dashboards de monitoramento         |
 | PostgreSQL | localhost:5434       | Banco de dados                      |
 | Redis      | localhost:6381       | Cache, filas e CQRS                 |
-| Worker     | —                    | Supervisord com 16 processos de fila |
+| Worker     | —                    | Supervisord com 28 processos de fila |
 
 ## Dados Iniciais (Seeder)
 
@@ -94,15 +94,15 @@ Authorization: Bearer {token}
 
 ### Rate Limiting
 
-A API utiliza rate limiting granular por tipo de operação, isolando limites por usuário autenticado para evitar que um usuário bloqueie outros. Os limites são dimensionados para suportar de 100 a 500 operações simultâneas:
+A API utiliza rate limiting granular por tipo de operação, isolando limites por usuário autenticado para evitar que um usuário bloqueie outros. Os limites são dimensionados para suportar 500+ operações simultâneas:
 
-| Limiter      | Limite     | Chave       | Rotas                                   |
-|--------------|------------|-------------|------------------------------------------|
-| `auth`       | 20/min     | por IP      | Login, Register (proteção brute force)   |
-| `api-read`   | 600/min    | por usuário | GET — listagens, status, polling         |
-| `api-write`  | 300/min    | por usuário | DELETE, retry, CRUD de escrita           |
-| `api-upload` | 500/min    | por usuário | POST — criação de imports/exports        |
-| `monitoring` | 120/min    | por IP      | Health check, Metrics                    |
+| Limiter      | Limite      | Chave       | Rotas                                   |
+|--------------|-------------|-------------|------------------------------------------|
+| `auth`       | 30/min      | por IP      | Login, Register (proteção brute force)   |
+| `api-read`   | 2.000/min   | por usuário | GET — listagens, status, polling         |
+| `api-write`  | 1.000/min   | por usuário | DELETE, retry, CRUD de escrita           |
+| `api-upload` | 1.000/min   | por usuário | POST — criação de imports/exports        |
+| `monitoring` | 120/min     | por IP      | Health check, Metrics                    |
 
 Quando o limite é atingido, a API retorna `429 Too Many Requests` com os headers `X-RateLimit-Limit`, `X-RateLimit-Remaining` e `Retry-After`.
 
@@ -789,13 +789,13 @@ O Prometheus retém dados por **7 dias** e faz scrape a cada **10 segundos**.
 
 ## Filas e Workers
 
-O worker utiliza **Supervisord** com 3 filas dedicadas e **16 processos** paralelos:
+O worker utiliza **Supervisord** com 3 filas dedicadas e **28 processos** paralelos:
 
 | Fila       | Processos | Timeout | Sleep | Rest  | Descrição                     |
 |------------|-----------|---------|-------|-------|-------------------------------|
-| `default`  | 4         | 300s    | 1s    | 0.1s  | Jobs gerais                   |
-| `imports`  | 8         | 600s    | 1s    | 0.1s  | Processamento de chunks CSV   |
-| `exports`  | 4         | 600s    | 1s    | 0.1s  | Geração de arquivos de export |
+| `default`  | 6         | 300s    | 1s    | 0.1s  | Jobs gerais                   |
+| `imports`  | 16        | 600s    | 1s    | 0.1s  | Processamento de chunks CSV   |
+| `exports`  | 6         | 600s    | 1s    | 0.1s  | Geração de arquivos de export |
 
 Cada fila possui retry automático com backoff progressivo (10s, 30s, 60s) e máximo de 3 tentativas. O `sleep` reduzido (1s vs 3s) e o `rest` (0.1s) garantem que os workers processam jobs com latência mínima.
 
@@ -834,6 +834,7 @@ O script:
 | Cenário                | Resultado                                             |
 |------------------------|-------------------------------------------------------|
 | 100 imports x 100 rows | 10.000 registros, 100/100 OK, 0 falhas, ~77s, ~129 reg/s |
+| 500 imports x 500 rows | 250.000 registros, 482/500 OK, 0 falhas, ~525s, ~459 reg/s |
 
 ## Testes
 
@@ -953,10 +954,14 @@ O pipeline de importação foi otimizado para alta concorrência:
 |---|---|---|
 | **Hash de senha** | bcrypt cost 4 para imports em massa (vs cost 10 padrão) | ~75x mais rápido por registro |
 | **Leitura CSV** | Passe único (contagem + chunks simultâneo) | 2x menos I/O |
-| **PHP-FPM** | Pool dinâmico: max_children=100, start=20, min_spare=10 | Suporta 100+ requests simultâneos |
-| **Nginx** | Upstream keepalive 64, worker_connections 4096, buffers otimizados | Conexões estáveis sob carga |
-| **Workers** | 16 processos, sleep=1s, rest=0.1s | Resposta rápida a novos jobs |
-| **Rate limiting** | upload 500/min, read 600/min | Suporta stress test de 100-500 imports |
+| **PHP-FPM** | Pool dinâmico: max_children=512, start=50, spare=20-100 | Suporta 500+ requests simultâneos |
+| **Nginx** | Upstream keepalive 256, worker_connections 8192, buffers otimizados | Conexões estáveis sob carga extrema |
+| **PostgreSQL** | max_connections=600, shared_buffers=256MB, work_mem=4MB | Suporta todas as conexões PHP-FPM + workers |
+| **Redis** | maxmemory 512MB, tcp-backlog 511 | Filas maiores e mais throughput |
+| **Workers** | 28 processos (6+16+6), sleep=1s, rest=0.1s | Alto throughput de processamento |
+| **Rate limiting** | upload 1000/min, read 2000/min, write 1000/min | Suporta 500+ imports simultâneos |
+| **Memória PHP** | 128MB por processo (vs 512MB), suficiente para CSV streaming | 512 workers cabem em memória |
+| **Docker** | ulimits nofile=65535 nos containers app e worker | Sem limite de file descriptors |
 
 ## Estrutura Docker
 
@@ -964,12 +969,12 @@ O pipeline de importação foi otimizado para alta concorrência:
 .docker/
 ├── Dockerfile              → PHP 8.5-FPM Alpine com extensões (pdo_pgsql, redis, pcntl, etc.)
 ├── php/
-│   ├── php.ini             → Configuração customizada do PHP (memory, upload, opcache)
-│   └── www.conf            → Pool PHP-FPM otimizado (100 children, dynamic scaling)
+│   ├── php.ini             → Configuração customizada do PHP (128MB memory, upload, opcache)
+│   └── www.conf            → Pool PHP-FPM otimizado (512 children, dynamic scaling)
 ├── nginx/
-│   ├── nginx.conf          → Config principal (worker_connections 4096, epoll)
-│   └── default.conf        → Virtual host com upstream keepalive e buffers
-├── supervisord.conf        → Workers de fila (4 default + 8 imports + 4 exports = 16)
+│   ├── nginx.conf          → Config principal (worker_connections 8192, epoll)
+│   └── default.conf        → Virtual host com upstream keepalive 256 e buffers
+├── supervisord.conf        → Workers de fila (6 default + 16 imports + 6 exports = 28)
 ├── prometheus/
 │   └── prometheus.yml      → Config de scrape (targets, intervalos)
 └── grafana/
@@ -982,10 +987,10 @@ O pipeline de importação foi otimizado para alta concorrência:
 
 | Container                   | Descrição                                    |
 |-----------------------------|----------------------------------------------|
-| `import-export-app`         | PHP-FPM — pool dinâmico com até 100 workers  |
-| `import-export-nginx`       | Nginx — proxy reverso com keepalive e 4096 connections |
-| `import-export-postgres`    | PostgreSQL 16 — banco de dados com health check |
-| `import-export-redis`       | Redis 7 — cache, filas e CQRS                |
-| `import-export-worker`      | Supervisord — 16 processos de fila paralelos |
+| `import-export-app`         | PHP-FPM — pool dinâmico com até 512 workers, ulimit 65535  |
+| `import-export-nginx`       | Nginx — proxy reverso com keepalive 256 e 8192 connections |
+| `import-export-postgres`    | PostgreSQL 16 — 600 conexões, shared_buffers 256MB |
+| `import-export-redis`       | Redis 7 — 512MB, cache, filas e CQRS         |
+| `import-export-worker`      | Supervisord — 28 processos de fila paralelos, ulimit 65535 |
 | `import-export-prometheus`  | Prometheus — coleta e armazena métricas       |
 | `import-export-grafana`     | Grafana — dashboards de monitoramento         |
