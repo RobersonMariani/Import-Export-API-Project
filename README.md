@@ -29,6 +29,7 @@ API RESTful para importação e exportação massiva de usuários via CSV, com p
 | DTOs           | Spatie Laravel Data                    |
 | CSV            | League CSV                             |
 | Containers     | Docker Compose                         |
+| Monitoramento  | Prometheus + Grafana                   |
 | Code Style     | Laravel Pint (PSR-12 strict)           |
 | Análise        | PHPStan / Larastan (nível 5)           |
 | Testes         | PHPUnit + Mockery                      |
@@ -60,6 +61,8 @@ Após o setup, a API estará disponível em `http://localhost:8080`.
 | Serviço    | URL / Porta          | Descrição                           |
 |------------|----------------------|-------------------------------------|
 | API        | http://localhost:8080 | Aplicação Laravel (via Nginx)       |
+| Prometheus | http://localhost:9090 | Coleta e consulta de métricas       |
+| Grafana    | http://localhost:3000 | Dashboards de monitoramento         |
 | PostgreSQL | localhost:5434       | Banco de dados                      |
 | Redis      | localhost:6381       | Cache, filas e CQRS                 |
 | Worker     | —                    | Supervisord com 9 processos de fila |
@@ -624,6 +627,78 @@ Funcionalidades podem ser habilitadas/desabilitadas via variáveis de ambiente:
 | `IMPORT_MAX_FILE_SIZE`    | Tamanho máx. do CSV em bytes              | `52428800` (50 MB)        |
 | `EXPORT_URL_EXPIRY_MINUTES` | Tempo de expiração da URL de download  | `60`                      |
 
+## Observabilidade (Prometheus + Grafana)
+
+O projeto inclui um stack completo de monitoramento com **Prometheus** para coleta de métricas e **Grafana** para dashboards visuais.
+
+### Como funciona
+
+```
+API (porta 8080)                     Prometheus (porta 9090)             Grafana (porta 3000)
+┌──────────────────┐  scrape a cada  ┌──────────────────┐  datasource  ┌──────────────────┐
+│ GET /api/v1/     │  10 segundos    │                  │              │                  │
+│     metrics      │ ◄────────────── │  Armazena        │ ────────────►│  Dashboards      │
+│                  │                 │  histórico (7d)  │              │  pré-configurados│
+│ Retorna:         │ ───────────────►│                  │              │                  │
+│ import_total     │                 │  PromQL queries  │              │  Auto-refresh    │
+│ export_total     │                 │                  │              │  a cada 10s      │
+│ queue_size       │                 │                  │              │                  │
+│ app_up           │                 │  localhost:9090   │              │  localhost:3000   │
+└──────────────────┘                 └──────────────────┘              └──────────────────┘
+```
+
+### Acessando
+
+| Serviço    | URL                    | Credenciais         |
+|------------|------------------------|---------------------|
+| Prometheus | http://localhost:9090   | sem autenticação    |
+| Grafana    | http://localhost:3000   | `admin` / `admin`   |
+
+### Prometheus — Consultas PromQL
+
+Acesse `http://localhost:9090` e use a aba **Graph** para executar queries:
+
+| Query                                            | O que retorna                          |
+|--------------------------------------------------|----------------------------------------|
+| `app_up`                                         | Se a API está online (1 = sim)         |
+| `import_total`                                   | Total de imports por status            |
+| `import_total{status="failed"}`                  | Imports com falha                      |
+| `export_total{status="completed"}`               | Exports concluídos                     |
+| `queue_size{queue="imports"}`                     | Jobs pendentes na fila de imports     |
+| `sum(queue_size)`                                | Total de jobs em todas as filas        |
+| `changes(import_total{status="completed"}[1h])`  | Variação de imports completos em 1h    |
+
+### Grafana — Dashboard
+
+O Grafana já vem com um **dashboard pré-configurado** que inclui:
+
+- **Visão Geral** — status da API, total de imports/exports, tamanho das filas
+- **Importações** — gráfico temporal por status, distribuição em donut, contador de falhas
+- **Exportações** — gráfico temporal por status, distribuição em donut, contador de falhas
+- **Filas** — histórico empilhado do tamanho das 3 filas (default, imports, exports)
+
+Para acessar: `http://localhost:3000` → login com `admin`/`admin` → o dashboard aparece automaticamente.
+
+### Métricas expostas pela API
+
+| Métrica         | Tipo    | Labels           | Descrição                        |
+|-----------------|---------|------------------|----------------------------------|
+| `app_up`        | gauge   | —                | Aplicação está rodando (sempre 1)|
+| `import_total`  | counter | `status`         | Total de imports por status      |
+| `export_total`  | counter | `status`         | Total de exports por status      |
+| `queue_size`    | gauge   | `queue`          | Jobs pendentes por fila          |
+
+### Configuração
+
+| Arquivo                                          | Descrição                          |
+|--------------------------------------------------|------------------------------------|
+| `.docker/prometheus/prometheus.yml`              | Config do Prometheus (scrape jobs) |
+| `.docker/grafana/provisioning/datasources/`      | Datasource Prometheus (auto)       |
+| `.docker/grafana/provisioning/dashboards/`       | Provider de dashboards (auto)      |
+| `.docker/grafana/dashboards/import-export-api.json` | Dashboard JSON pré-configurado  |
+
+O Prometheus retém dados por **7 dias** e faz scrape a cada **10 segundos**.
+
 ## Filas e Workers
 
 O worker utiliza **Supervisord** com 3 filas dedicadas:
@@ -754,13 +829,23 @@ O Service é **opcional** — só existe quando há lógica de negócio complexa
 │   └── php.ini             → Configuração customizada do PHP
 ├── nginx/
 │   └── default.conf        → Virtual host apontando para public/
-└── supervisord.conf        → Workers de fila (default, imports, exports)
+├── supervisord.conf        → Workers de fila (default, imports, exports)
+├── prometheus/
+│   └── prometheus.yml      → Config de scrape (targets, intervalos)
+└── grafana/
+    ├── provisioning/
+    │   ├── datasources/    → Datasource Prometheus (auto-provisionado)
+    │   └── dashboards/     → Provider de dashboards (auto-provisionado)
+    └── dashboards/
+        └── import-export-api.json → Dashboard pré-configurado
 ```
 
-| Container                | Descrição                                    |
-|--------------------------|----------------------------------------------|
-| `import-export-app`      | PHP-FPM — executa a aplicação Laravel        |
-| `import-export-nginx`    | Nginx — proxy reverso para o PHP-FPM         |
-| `import-export-postgres` | PostgreSQL 16 — banco de dados com health check |
-| `import-export-redis`    | Redis 7 — cache, filas e CQRS                |
-| `import-export-worker`   | Supervisord — 9 processos de fila paralelos  |
+| Container                   | Descrição                                    |
+|-----------------------------|----------------------------------------------|
+| `import-export-app`         | PHP-FPM — executa a aplicação Laravel        |
+| `import-export-nginx`       | Nginx — proxy reverso para o PHP-FPM         |
+| `import-export-postgres`    | PostgreSQL 16 — banco de dados com health check |
+| `import-export-redis`       | Redis 7 — cache, filas e CQRS                |
+| `import-export-worker`      | Supervisord — 9 processos de fila paralelos  |
+| `import-export-prometheus`  | Prometheus — coleta e armazena métricas       |
+| `import-export-grafana`     | Grafana — dashboards de monitoramento         |
