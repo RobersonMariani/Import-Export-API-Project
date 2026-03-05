@@ -12,7 +12,7 @@ EMAIL="${EMAIL:-admin@example.com}"
 PASSWORD="${PASSWORD:-password}"
 NUM_IMPORTS="${1:-5}"
 ROWS_PER_CSV="${2:-100}"
-POLL_INTERVAL=3
+POLL_INTERVAL=5
 TMP_DIR=$(mktemp -d)
 
 BLUE='\033[0;34m'
@@ -145,6 +145,9 @@ IMPORT_IDS=()
 PIDS=()
 START_TIME=$(date +%s)
 
+BATCH_SIZE=5
+batch_count=0
+
 for i in $(seq 1 "$NUM_IMPORTS"); do
   CSV_FILE="${TMP_DIR}/import_${i}.csv"
   RESULT_FILE="${TMP_DIR}/result_${i}.json"
@@ -156,6 +159,16 @@ for i in $(seq 1 "$NUM_IMPORTS"); do
     -o "$RESULT_FILE" &
 
   PIDS+=($!)
+  batch_count=$((batch_count + 1))
+
+  if [ $batch_count -ge $BATCH_SIZE ]; then
+    for pid in "${PIDS[@]}"; do
+      wait "$pid"
+    done
+    PIDS=()
+    batch_count=0
+    sleep 1
+  fi
 done
 
 for pid in "${PIDS[@]}"; do
@@ -206,9 +219,26 @@ while true; do
     import_id="${IMPORT_IDS[$idx]}"
     num=$((idx + 1))
 
-    response=$(curl -s -X GET "${API_URL}/imports/${import_id}" \
-      -H "Authorization: Bearer ${TOKEN}" \
-      -H "Accept: application/json" 2>/dev/null)
+    http_code=""
+    response=""
+    for attempt in 1 2 3; do
+      full_response=$(curl -s -w "\n%{http_code}" -X GET "${API_URL}/imports/${import_id}" \
+        -H "Authorization: Bearer ${TOKEN}" \
+        -H "Accept: application/json" 2>/dev/null)
+      http_code=$(echo "$full_response" | tail -1)
+      response=$(echo "$full_response" | sed '$d')
+
+      if [ "$http_code" = "429" ]; then
+        sleep 2
+        continue
+      fi
+      break
+    done
+
+    if [ "$http_code" = "429" ]; then
+      status="rate_limited"
+      response=""
+    fi
 
     status=$(echo "$response" | grep -o '"status":"[^"]*"' | head -1 | cut -d'"' -f4)
     total=$(echo "$response" | grep -o '"total_records":[0-9]*' | head -1 | cut -d':' -f2)
@@ -256,6 +286,8 @@ while true; do
     bar_empty=$(printf "%${empty}s" | tr ' ' '░')
 
     echo -e "  ${status_icon} #${num} ${import_id:0:8}  [${BLUE}${bar}${NC}${bar_empty}] ${pct}%  ${processed}/${total}  ${GREEN}ok:${success}${NC} ${RED}err:${failed_rows}${NC}  (${status})"
+
+    sleep 0.2
   done
 
   ELAPSED=$(( $(date +%s) - START_TIME ))
