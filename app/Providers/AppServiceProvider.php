@@ -32,23 +32,23 @@ class AppServiceProvider extends ServiceProvider
     private function configureRateLimiting(): void
     {
         RateLimiter::for('auth', function (Request $request) {
-            return Limit::perMinute(10)->by($request->ip());
+            return Limit::perMinute(20)->by($request->ip());
         });
 
         RateLimiter::for('api-read', function (Request $request) {
-            return Limit::perMinute(120)->by($request->user()?->getKey() ?: $request->ip());
+            return Limit::perMinute(600)->by($request->user()?->getKey() ?: $request->ip());
         });
 
         RateLimiter::for('api-write', function (Request $request) {
-            return Limit::perMinute(60)->by($request->user()?->getKey() ?: $request->ip());
+            return Limit::perMinute(300)->by($request->user()?->getKey() ?: $request->ip());
         });
 
         RateLimiter::for('api-upload', function (Request $request) {
-            return Limit::perMinute(30)->by($request->user()?->getKey() ?: $request->ip());
+            return Limit::perMinute(500)->by($request->user()?->getKey() ?: $request->ip());
         });
 
         RateLimiter::for('monitoring', function (Request $request) {
-            return Limit::perMinute(60)->by($request->ip());
+            return Limit::perMinute(120)->by($request->ip());
         });
     }
 }
