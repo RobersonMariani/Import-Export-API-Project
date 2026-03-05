@@ -14,6 +14,7 @@ RUN apk add --no-cache \
     && apk del .build-deps
 
 COPY .docker/php/php.ini /usr/local/etc/php/conf.d/custom.ini
+COPY .docker/php/www.conf /usr/local/etc/php-fpm.d/www.conf
 COPY .docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
