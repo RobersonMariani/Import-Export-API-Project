@@ -21,8 +21,6 @@ return Application::configure(basePath: dirname(__DIR__))
             CorrelationIdMiddleware::class,
         ]);
 
-        $middleware->throttleApi('60,1');
-
         $middleware->alias([
             'feature' => FeatureFlagMiddleware::class,
         ]);
