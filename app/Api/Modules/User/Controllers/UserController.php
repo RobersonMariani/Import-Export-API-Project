@@ -8,6 +8,7 @@ use App\Api\Modules\User\Data\CreateUserData;
 use App\Api\Modules\User\Data\UpdateUserData;
 use App\Api\Modules\User\Data\UserQueryData;
 use App\Api\Modules\User\Resources\UserResource;
+use App\Api\Modules\User\UseCases\CountUsersUseCase;
 use App\Api\Modules\User\UseCases\CreateUserUseCase;
 use App\Api\Modules\User\UseCases\DeleteUserUseCase;
 use App\Api\Modules\User\UseCases\GetUsersUseCase;
@@ -54,5 +55,19 @@ class UserController extends Controller
         $useCase->execute($user);
 
         return response()->json(null, Response::HTTP_NO_CONTENT);
+    }
+
+    public function count(Request $request, CountUsersUseCase $useCase): JsonResponse
+    {
+        $filters = array_filter([
+            'search' => $request->query('search'),
+            'role' => $request->query('role'),
+            'state' => $request->query('state'),
+            'city' => $request->query('city'),
+        ], fn ($v) => $v !== null && $v !== '');
+
+        return response()->json([
+            'count' => $useCase->execute($filters),
+        ]);
     }
 }

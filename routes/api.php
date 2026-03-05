@@ -22,6 +22,7 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/auth/me', [AuthController::class, 'me']);
 
         // User routes (Phase 2)
+        Route::get('users/count', [UserController::class, 'count']);
         Route::apiResource('users', UserController::class);
 
         // Import routes (Phase 3) — feature flag

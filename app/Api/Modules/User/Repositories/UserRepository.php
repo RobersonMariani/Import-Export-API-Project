@@ -51,6 +51,12 @@ class UserRepository
         return $user->delete();
     }
 
+    /** @param array<string, mixed> $filters */
+    public function countForExport(array $filters): int
+    {
+        return $this->buildExportQuery($filters)->count();
+    }
+
     /**
      * @param array<string, mixed> $filters
      *
@@ -58,8 +64,20 @@ class UserRepository
      */
     public function getCursorForExport(array $filters): LazyCollection
     {
-        return User::query()
+        return $this->buildExportQuery($filters)
             ->select(['id', 'name', 'email', 'phone', 'address', 'city', 'state', 'zip_code', 'birth_date', 'role', 'created_at'])
+            ->orderBy('id')
+            ->cursor();
+    }
+
+    /**
+     * @param array<string, mixed> $filters
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<User>
+     */
+    private function buildExportQuery(array $filters): \Illuminate\Database\Eloquent\Builder
+    {
+        return User::query()
             ->when(isset($filters['search']) && $filters['search'] !== '', function ($q) use ($filters) {
                 $search = $filters['search'];
                 $q->where(function ($q) use ($search) {
@@ -69,8 +87,6 @@ class UserRepository
             })
             ->when(isset($filters['role']) && $filters['role'] !== '', fn ($q) => $q->where('role', $filters['role']))
             ->when(isset($filters['state']) && $filters['state'] !== '', fn ($q) => $q->where('state', $filters['state']))
-            ->when(isset($filters['city']) && $filters['city'] !== '', fn ($q) => $q->where('city', $filters['city']))
-            ->orderBy('id')
-            ->cursor();
+            ->when(isset($filters['city']) && $filters['city'] !== '', fn ($q) => $q->where('city', $filters['city']));
     }
 }
