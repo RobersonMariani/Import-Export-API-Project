@@ -69,7 +69,7 @@ Após o setup, a API estará disponível em `http://localhost:8080`.
 | Grafana    | http://localhost:3000 | Dashboards de monitoramento         |
 | PostgreSQL | localhost:5434       | Banco de dados                      |
 | Redis      | localhost:6381       | Cache, filas e CQRS                 |
-| Worker     | —                    | Supervisord com 9 processos de fila |
+| Worker     | —                    | Supervisord com 16 processos de fila |
 
 ## Dados Iniciais (Seeder)
 
@@ -94,15 +94,15 @@ Authorization: Bearer {token}
 
 ### Rate Limiting
 
-A API utiliza rate limiting granular por tipo de operação, isolando limites por usuário autenticado para evitar que um usuário bloqueie outros:
+A API utiliza rate limiting granular por tipo de operação, isolando limites por usuário autenticado para evitar que um usuário bloqueie outros. Os limites são dimensionados para suportar de 100 a 500 operações simultâneas:
 
 | Limiter      | Limite     | Chave       | Rotas                                   |
 |--------------|------------|-------------|------------------------------------------|
-| `auth`       | 10/min     | por IP      | Login, Register (proteção brute force)   |
-| `api-read`   | 120/min    | por usuário | GET — listagens, status, polling         |
-| `api-write`  | 60/min     | por usuário | DELETE, retry, CRUD de escrita           |
-| `api-upload` | 30/min     | por usuário | POST — criação de imports/exports        |
-| `monitoring` | 60/min     | por IP      | Health check, Metrics                    |
+| `auth`       | 20/min     | por IP      | Login, Register (proteção brute force)   |
+| `api-read`   | 600/min    | por usuário | GET — listagens, status, polling         |
+| `api-write`  | 300/min    | por usuário | DELETE, retry, CRUD de escrita           |
+| `api-upload` | 500/min    | por usuário | POST — criação de imports/exports        |
+| `monitoring` | 120/min    | por IP      | Health check, Metrics                    |
 
 Quando o limite é atingido, a API retorna `429 Too Many Requests` com os headers `X-RateLimit-Limit`, `X-RateLimit-Remaining` e `Retry-After`.
 
@@ -789,15 +789,15 @@ O Prometheus retém dados por **7 dias** e faz scrape a cada **10 segundos**.
 
 ## Filas e Workers
 
-O worker utiliza **Supervisord** com 3 filas dedicadas:
+O worker utiliza **Supervisord** com 3 filas dedicadas e **16 processos** paralelos:
 
-| Fila       | Processos | Timeout | Descrição                     |
-|------------|-----------|---------|-------------------------------|
-| `default`  | 3         | 300s    | Jobs gerais                   |
-| `imports`  | 4         | 600s    | Processamento de chunks CSV   |
-| `exports`  | 2         | 600s    | Geração de arquivos de export |
+| Fila       | Processos | Timeout | Sleep | Rest  | Descrição                     |
+|------------|-----------|---------|-------|-------|-------------------------------|
+| `default`  | 4         | 300s    | 1s    | 0.1s  | Jobs gerais                   |
+| `imports`  | 8         | 600s    | 1s    | 0.1s  | Processamento de chunks CSV   |
+| `exports`  | 4         | 600s    | 1s    | 0.1s  | Geração de arquivos de export |
 
-Cada fila possui retry automático com backoff progressivo (10s, 30s, 60s) e máximo de 3 tentativas.
+Cada fila possui retry automático com backoff progressivo (10s, 30s, 60s) e máximo de 3 tentativas. O `sleep` reduzido (1s vs 3s) e o `rest` (0.1s) garantem que os workers processam jobs com latência mínima.
 
 ### Resiliência de Jobs
 
@@ -807,25 +807,33 @@ Cada fila possui retry automático com backoff progressivo (10s, 30s, 60s) e má
 
 ## Stress Test
 
-O script `scripts/stress-test.sh` permite testar carga simultânea na aplicação:
+O script `scripts/stress-test.sh` permite testar carga simultânea com concorrência controlada:
 
 ```bash
-# Uso: ./scripts/stress-test.sh [num_imports] [linhas_por_csv]
-./scripts/stress-test.sh 20 100
+# Uso: ./scripts/stress-test.sh [num_imports] [linhas_por_csv] [concorrencia]
+./scripts/stress-test.sh 100 100 50
 
 # Exemplos
-./scripts/stress-test.sh 5 50      # 5 imports com 50 linhas cada (250 registros)
-./scripts/stress-test.sh 20 20     # 20 imports com 20 linhas cada (400 registros)
-./scripts/stress-test.sh 10 1000   # 10 imports com 1.000 linhas cada (10.000 registros)
+./scripts/stress-test.sh 5 50 5       # 5 imports com 50 linhas, 5 simultâneos (250 registros)
+./scripts/stress-test.sh 100 100 50   # 100 imports com 100 linhas, 50 simultâneos (10.000 registros)
+./scripts/stress-test.sh 200 500 100  # 200 imports com 500 linhas, 100 simultâneos (100.000 registros)
 ```
+
+O terceiro parâmetro (`concorrencia`) controla quantos uploads são disparados ao mesmo tempo. Default: 50.
 
 O script:
 1. Gera CSVs com dados aleatórios (nomes, e-mails, cidades brasileiras)
 2. Autentica na API e obtém token JWT
-3. Dispara imports em lotes de 5 com pausa entre batches
-4. Monitora progresso em tempo real com barras visuais
-5. Retry automático em caso de rate limiting (HTTP 429)
-6. Exibe relatório final com totais, performance e taxa de sucesso
+3. Dispara uploads com concorrência controlada (não em lotes fixos)
+4. Retry automático com backoff exponencial em caso de rate limiting (HTTP 429)
+5. Monitora progresso em tempo real com barras visuais
+6. Exibe relatório final com tempos de upload, processamento e taxa de registros/segundo
+
+### Resultado de referência
+
+| Cenário                | Resultado                                             |
+|------------------------|-------------------------------------------------------|
+| 100 imports x 100 rows | 10.000 registros, 100/100 OK, 0 falhas, ~77s, ~129 reg/s |
 
 ## Testes
 
@@ -937,16 +945,31 @@ O Service é **opcional** — só existe quando há lógica de negócio complexa
 | Atomic Updates           | `DB::raw()` para incrementos concorrentes de progresso   |
 | Job Resilience           | `failed()` handler, stale job detection, retry/delete     |
 
+### Otimizações de Performance
+
+O pipeline de importação foi otimizado para alta concorrência:
+
+| Componente | Otimização | Impacto |
+|---|---|---|
+| **Hash de senha** | bcrypt cost 4 para imports em massa (vs cost 10 padrão) | ~75x mais rápido por registro |
+| **Leitura CSV** | Passe único (contagem + chunks simultâneo) | 2x menos I/O |
+| **PHP-FPM** | Pool dinâmico: max_children=100, start=20, min_spare=10 | Suporta 100+ requests simultâneos |
+| **Nginx** | Upstream keepalive 64, worker_connections 4096, buffers otimizados | Conexões estáveis sob carga |
+| **Workers** | 16 processos, sleep=1s, rest=0.1s | Resposta rápida a novos jobs |
+| **Rate limiting** | upload 500/min, read 600/min | Suporta stress test de 100-500 imports |
+
 ## Estrutura Docker
 
 ```
 .docker/
 ├── Dockerfile              → PHP 8.5-FPM Alpine com extensões (pdo_pgsql, redis, pcntl, etc.)
 ├── php/
-│   └── php.ini             → Configuração customizada do PHP
+│   ├── php.ini             → Configuração customizada do PHP (memory, upload, opcache)
+│   └── www.conf            → Pool PHP-FPM otimizado (100 children, dynamic scaling)
 ├── nginx/
-│   └── default.conf        → Virtual host apontando para public/
-├── supervisord.conf        → Workers de fila (default, imports, exports)
+│   ├── nginx.conf          → Config principal (worker_connections 4096, epoll)
+│   └── default.conf        → Virtual host com upstream keepalive e buffers
+├── supervisord.conf        → Workers de fila (4 default + 8 imports + 4 exports = 16)
 ├── prometheus/
 │   └── prometheus.yml      → Config de scrape (targets, intervalos)
 └── grafana/
@@ -959,10 +982,10 @@ O Service é **opcional** — só existe quando há lógica de negócio complexa
 
 | Container                   | Descrição                                    |
 |-----------------------------|----------------------------------------------|
-| `import-export-app`         | PHP-FPM — executa a aplicação Laravel        |
-| `import-export-nginx`       | Nginx — proxy reverso para o PHP-FPM         |
+| `import-export-app`         | PHP-FPM — pool dinâmico com até 100 workers  |
+| `import-export-nginx`       | Nginx — proxy reverso com keepalive e 4096 connections |
 | `import-export-postgres`    | PostgreSQL 16 — banco de dados com health check |
 | `import-export-redis`       | Redis 7 — cache, filas e CQRS                |
-| `import-export-worker`      | Supervisord — 9 processos de fila paralelos  |
+| `import-export-worker`      | Supervisord — 16 processos de fila paralelos |
 | `import-export-prometheus`  | Prometheus — coleta e armazena métricas       |
 | `import-export-grafana`     | Grafana — dashboards de monitoramento         |
