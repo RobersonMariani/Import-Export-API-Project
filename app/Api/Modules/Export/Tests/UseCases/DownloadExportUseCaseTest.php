@@ -6,7 +6,6 @@ namespace App\Api\Modules\Export\Tests\UseCases;
 
 use App\Api\Modules\Export\Enums\ExportStatusEnum;
 use App\Api\Modules\Export\Repositories\ExportRepository;
-use App\Api\Modules\Export\Services\ExportService;
 use App\Api\Modules\Export\UseCases\DownloadExportUseCase;
 use App\Models\Export;
 use App\Models\User;
@@ -126,27 +125,4 @@ class DownloadExportUseCaseTest extends TestCase
         $useCase->execute($export->id, $user->id);
     }
 
-    public function testGetDownloadUrlShouldDelegateToExportService(): void
-    {
-        // Arrange
-        $export = Export::factory()->completed()->create();
-        $expectedUrl = 'https://example.com/temp/download-url';
-
-        $this->instance(
-            ExportService::class,
-            Mockery::mock(ExportService::class, function (MockInterface $mock) use ($export, $expectedUrl) {
-                $mock->shouldReceive('getTemporaryDownloadUrl')
-                    ->once()
-                    ->with($export)
-                    ->andReturn($expectedUrl);
-            }),
-        );
-
-        // Act
-        $useCase = app()->make(DownloadExportUseCase::class);
-        $result = $useCase->getDownloadUrl($export);
-
-        // Assert
-        $this->assertEquals($expectedUrl, $result);
-    }
 }

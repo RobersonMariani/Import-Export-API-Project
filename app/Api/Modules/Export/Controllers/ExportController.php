@@ -17,6 +17,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
 
 class ExportController extends Controller
@@ -47,15 +48,16 @@ class ExportController extends Controller
         return ExportResource::make($useCase->execute($export, $userId));
     }
 
-    public function download(Request $request, string $export, DownloadExportUseCase $useCase): JsonResponse
+    public function download(Request $request, string $export, DownloadExportUseCase $useCase): \Symfony\Component\HttpFoundation\BinaryFileResponse|JsonResponse
     {
         $userId = (int) $request->user()?->getKey();
         $exportModel = $useCase->execute($export, $userId);
-        $url = $useCase->getDownloadUrl($exportModel);
 
-        return response()->json([
-            'download_url' => $url,
-        ]);
+        $fullPath = Storage::disk('local')->path($exportModel->file_path);
+        $extension = $exportModel->compressed ? 'csv.gz' : 'csv';
+        $filename = 'export-'.$exportModel->id.'.'.$extension;
+
+        return response()->download($fullPath, $filename);
     }
 
     public function destroy(Request $request, string $export, DeleteExportUseCase $useCase): JsonResponse

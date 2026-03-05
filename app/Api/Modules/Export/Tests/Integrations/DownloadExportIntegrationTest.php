@@ -4,13 +4,10 @@ declare(strict_types=1);
 
 namespace App\Api\Modules\Export\Tests\Integrations;
 
-use App\Api\Modules\Export\Services\ExportService;
 use App\Models\Export;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
-use Mockery;
-use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
@@ -27,32 +24,21 @@ class DownloadExportIntegrationTest extends TestCase
         Storage::fake('local');
     }
 
-    public function testShouldReturnDownloadUrlWhenExportCompleted(): void
+    public function testShouldReturnFileDownloadWhenExportCompleted(): void
     {
         // Arrange
         $user = User::factory()->create();
         $export = Export::factory()->completed()->create(['user_id' => $user->id]);
-        Storage::disk('local')->put($export->file_path, 'csv,content');
-
-        $this->instance(
-            ExportService::class,
-            Mockery::mock(ExportService::class, function (MockInterface $mock) {
-                $mock->shouldReceive('getTemporaryDownloadUrl')
-                    ->andReturn('https://example.com/temp/download-url');
-            }),
-        );
+        Storage::disk('local')->put($export->file_path, "name,email\nJohn,john@example.com");
 
         $token = auth('api')->login($user);
 
         // Act & Assert
-        $response = $this
-            ->withHeader('Accept', 'application/json')
+        $this
             ->withHeader('Authorization', 'Bearer '.$token)
-            ->getJson(self::ENDPOINT.'/'.$export->id.'/download')
+            ->get(self::ENDPOINT.'/'.$export->id.'/download')
             ->assertOk()
-            ->assertJsonStructure(['download_url']);
-
-        $this->assertEquals('https://example.com/temp/download-url', $response->json('download_url'));
+            ->assertDownload();
     }
 
     public function testShouldReturnNotFoundWhenExportDoesNotExist(): void

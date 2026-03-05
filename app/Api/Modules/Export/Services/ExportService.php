@@ -46,18 +46,6 @@ class ExportService
         ]);
     }
 
-    public function getTemporaryDownloadUrl(Export $export): string
-    {
-        if ($export->file_path === null) {
-            throw new RuntimeException('Export ainda não possui arquivo disponível');
-        }
-
-        return Storage::disk('local')->temporaryUrl(
-            $export->file_path,
-            now()->addMinutes(15),
-        );
-    }
-
     /** @return list<string> */
     private function getCsvHeaders(): array
     {
