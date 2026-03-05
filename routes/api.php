@@ -26,16 +26,21 @@ Route::prefix('v1')->group(function (): void {
 
         // Import routes (Phase 3) — feature flag
         Route::middleware('feature:import')->group(function (): void {
-            Route::post('/imports', [ImportController::class, 'store']);
             Route::get('/imports', [ImportController::class, 'index']);
+            Route::post('/imports', [ImportController::class, 'store']);
             Route::get('/imports/{import}', [ImportController::class, 'show']);
+            Route::delete('/imports/{import}', [ImportController::class, 'destroy']);
+            Route::post('/imports/{import}/retry', [ImportController::class, 'retry']);
         });
 
         // Export routes (Phase 4) — feature flag
         Route::middleware('feature:export')->group(function (): void {
+            Route::get('/exports', [ExportController::class, 'index']);
             Route::post('/exports', [ExportController::class, 'store']);
             Route::get('/exports/{export}', [ExportController::class, 'show']);
             Route::get('/exports/{export}/download', [ExportController::class, 'download']);
+            Route::delete('/exports/{export}', [ExportController::class, 'destroy']);
+            Route::post('/exports/{export}/retry', [ExportController::class, 'retry']);
         });
     });
 
