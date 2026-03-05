@@ -1,6 +1,6 @@
 # Import Export API
 
-API RESTful para importação e exportação massiva de usuários via CSV, com processamento distribuído, tolerância a falhas e monitoramento, construída com Laravel 12.
+API RESTful para importação e exportação massiva de usuários via CSV, com processamento distribuído, tolerância a falhas e monitoramento em tempo real, construída com Laravel 12.
 
 ## Funcionalidades
 
@@ -9,6 +9,9 @@ API RESTful para importação e exportação massiva de usuários via CSV, com p
 - Importação massiva via CSV com processamento em chunks por múltiplos workers
 - Exportação assíncrona para CSV com filtros e compressão opcional
 - Controle de progresso em tempo real com estimativa de tempo restante
+- Reprocessamento (retry) e exclusão de imports/exports com falha
+- Detecção automática de jobs travados (stale jobs) via comando agendado
+- Rate limiting granular por tipo de operação e por usuário
 - Feature flags para habilitar/desabilitar funcionalidades
 - Correlation ID para rastreamento de requisições
 - Health check e métricas (Prometheus-compatible)
@@ -16,6 +19,7 @@ API RESTful para importação e exportação massiva de usuários via CSV, com p
 - Cache CQRS com Redis para leitura de status
 - Soft delete de usuários
 - Validação de dados via DTOs com Spatie Laravel Data
+- Script de stress test para carga simultânea
 
 ## Stack
 
@@ -87,6 +91,22 @@ Todas as rotas (exceto registro, login, health e metrics) requerem o header:
 ```
 Authorization: Bearer {token}
 ```
+
+### Rate Limiting
+
+A API utiliza rate limiting granular por tipo de operação, isolando limites por usuário autenticado para evitar que um usuário bloqueie outros:
+
+| Limiter      | Limite     | Chave       | Rotas                                   |
+|--------------|------------|-------------|------------------------------------------|
+| `auth`       | 10/min     | por IP      | Login, Register (proteção brute force)   |
+| `api-read`   | 120/min    | por usuário | GET — listagens, status, polling         |
+| `api-write`  | 60/min     | por usuário | DELETE, retry, CRUD de escrita           |
+| `api-upload` | 30/min     | por usuário | POST — criação de imports/exports        |
+| `monitoring` | 60/min     | por IP      | Health check, Metrics                    |
+
+Quando o limite é atingido, a API retorna `429 Too Many Requests` com os headers `X-RateLimit-Limit`, `X-RateLimit-Remaining` e `Retry-After`.
+
+---
 
 ### Health Check
 
@@ -365,6 +385,23 @@ GET /api/v1/users?search=maria&role=user&state=SP&page=1&per_page=10&sort_by=nam
 }
 ```
 
+#### Contar usuários (preview de exportação)
+
+```
+GET /api/v1/users/count
+GET /api/v1/users/count?search=maria&role=user&state=SP&city=São Paulo
+```
+
+Retorna a quantidade de usuários que seriam exportados com os filtros aplicados.
+
+**Resposta** `200`:
+
+```json
+{
+  "count": 42
+}
+```
+
 #### Buscar usuário
 
 ```
@@ -421,11 +458,12 @@ Content-Type: multipart/form-data
 **Exemplo de CSV:**
 
 ```csv
-name,email,password
-User 1,user1@csv.com,password123
-User 2,user2@csv.com,password123
-User 3,user3@csv.com,password123
+name,email,password,phone,address,city,state,zip_code,birth_date,role
+User 1,user1@csv.com,password123,11999887766,Rua A,São Paulo,SP,01000-000,1990-01-15,user
+User 2,user2@csv.com,password123,,,,,,,admin
 ```
+
+Campos obrigatórios no CSV: `name`, `email`, `password`. Demais campos são opcionais.
 
 **Resposta** `202`:
 
@@ -440,6 +478,7 @@ User 3,user3@csv.com,password123
     "success_count": 0,
     "failure_count": 0,
     "original_filename": "users.csv",
+    "error_message": null,
     "started_at": null,
     "finished_at": null,
     "processing_time_seconds": null,
@@ -495,6 +534,7 @@ GET /api/v1/imports/{id}
     "success_count": 7480,
     "failure_count": 20,
     "original_filename": "users_big.csv",
+    "error_message": null,
     "started_at": "2026-02-27T12:00:05+00:00",
     "finished_at": null,
     "processing_time_seconds": 45,
@@ -503,6 +543,24 @@ GET /api/v1/imports/{id}
   }
 }
 ```
+
+#### Reprocessar importação com falha
+
+```
+POST /api/v1/imports/{id}/retry
+```
+
+Reenfileira uma importação com status `failed` ou `partial` para reprocessamento.
+
+**Resposta** `200`: importação com status atualizado para `queued`.
+
+#### Excluir importação
+
+```
+DELETE /api/v1/imports/{id}
+```
+
+**Resposta** `204`: sem corpo.
 
 ---
 
@@ -551,8 +609,7 @@ Todos os campos são opcionais. Sem filtros, exporta todos os usuários. Sem `co
     "total_records": 0,
     "compressed": true,
     "file_path": null,
-    "download_url": null,
-    "expires_at": null,
+    "error_message": null,
     "started_at": null,
     "finished_at": null,
     "processing_time_seconds": null,
@@ -560,6 +617,21 @@ Todos os campos são opcionais. Sem filtros, exporta todos os usuários. Sem `co
   }
 }
 ```
+
+#### Listar exportações
+
+```
+GET /api/v1/exports
+GET /api/v1/exports?status=completed&page=1&per_page=10
+```
+
+| Parâmetro  | Tipo   | Padrão | Descrição                                             |
+|------------|--------|--------|-------------------------------------------------------|
+| `status`   | string | —      | `queued`, `processing`, `completed`, `failed`         |
+| `page`     | int    | 1      | Página atual                                          |
+| `per_page` | int    | 15     | Itens por página                                      |
+
+**Resposta** `200`: array paginado de exportações.
 
 #### Ver status da exportação
 
@@ -578,8 +650,7 @@ GET /api/v1/exports/{id}
     "total_records": 95,
     "compressed": true,
     "file_path": "exports/a1b2c3d4.csv.gz",
-    "download_url": "http://localhost:8080/api/v1/exports/a1b2c3d4.../download?signature=...",
-    "expires_at": "2026-02-27T13:00:00+00:00",
+    "error_message": null,
     "started_at": "2026-02-27T12:00:01+00:00",
     "finished_at": "2026-02-27T12:00:03+00:00",
     "processing_time_seconds": 2,
@@ -594,7 +665,25 @@ GET /api/v1/exports/{id}
 GET /api/v1/exports/{id}/download
 ```
 
-Retorna o arquivo CSV (ou CSV comprimido) para download. A URL assinada expira em 60 minutos (configurável via `EXPORT_URL_EXPIRY_MINUTES`).
+Retorna o arquivo CSV (ou CSV comprimido) diretamente como download binário. O header `Content-Disposition` inclui o nome do arquivo.
+
+#### Reprocessar exportação com falha
+
+```
+POST /api/v1/exports/{id}/retry
+```
+
+Reenfileira uma exportação com status `failed` para reprocessamento.
+
+**Resposta** `200`: exportação com status atualizado para `queued`.
+
+#### Excluir exportação
+
+```
+DELETE /api/v1/exports/{id}
+```
+
+**Resposta** `204`: sem corpo.
 
 ---
 
@@ -625,7 +714,6 @@ Funcionalidades podem ser habilitadas/desabilitadas via variáveis de ambiente:
 | `JWT_REFRESH_TTL`         | Expiração do refresh token (minutos)      | `20160` (14 dias)         |
 | `IMPORT_CHUNK_SIZE`       | Linhas por chunk na importação            | `1000`                    |
 | `IMPORT_MAX_FILE_SIZE`    | Tamanho máx. do CSV em bytes              | `52428800` (50 MB)        |
-| `EXPORT_URL_EXPIRY_MINUTES` | Tempo de expiração da URL de download  | `60`                      |
 
 ## Observabilidade (Prometheus + Grafana)
 
@@ -711,6 +799,34 @@ O worker utiliza **Supervisord** com 3 filas dedicadas:
 
 Cada fila possui retry automático com backoff progressivo (10s, 30s, 60s) e máximo de 3 tentativas.
 
+### Resiliência de Jobs
+
+- Jobs que falham após todas as tentativas são marcados como `failed` com `error_message` detalhado
+- O comando `jobs:detect-stale` roda a cada 5 minutos e marca como `failed` imports/exports que ficaram em `queued` ou `processing` por mais de 30 minutos
+- O frontend permite **reprocessar** (retry) ou **excluir** imports/exports com falha
+
+## Stress Test
+
+O script `scripts/stress-test.sh` permite testar carga simultânea na aplicação:
+
+```bash
+# Uso: ./scripts/stress-test.sh [num_imports] [linhas_por_csv]
+./scripts/stress-test.sh 20 100
+
+# Exemplos
+./scripts/stress-test.sh 5 50      # 5 imports com 50 linhas cada (250 registros)
+./scripts/stress-test.sh 20 20     # 20 imports com 20 linhas cada (400 registros)
+./scripts/stress-test.sh 10 1000   # 10 imports com 1.000 linhas cada (10.000 registros)
+```
+
+O script:
+1. Gera CSVs com dados aleatórios (nomes, e-mails, cidades brasileiras)
+2. Autentica na API e obtém token JWT
+3. Dispara imports em lotes de 5 com pausa entre batches
+4. Monitora progresso em tempo real com barras visuais
+5. Retry automático em caso de rate limiting (HTTP 429)
+6. Exibe relatório final com totais, performance e taxa de sucesso
+
 ## Testes
 
 ```bash
@@ -741,7 +857,7 @@ docker compose exec app php artisan ide-helper:models --write-mixin --no-interac
 
 ## Postman
 
-O arquivo `Import-Export-API.postman_collection.json` na raiz do projeto contém uma collection completa com 25 requests para testar todas as rotas. Basta importar no Postman via **File > Import**.
+O arquivo `Import-Export-API.postman_collection.json` na raiz do projeto contém uma collection completa com 25+ requests para testar todas as rotas. Basta importar no Postman via **File > Import**.
 
 A collection salva automaticamente o token JWT nas variáveis ao fazer login/register e captura IDs de recursos criados.
 
@@ -762,7 +878,7 @@ app/Api/Modules/
 ├── User/
 │   ├── Controllers/
 │   ├── Data/               → CreateUserData, UpdateUserData, UserQueryData
-│   ├── UseCases/
+│   ├── UseCases/           → CreateUser, GetUser, GetUsers, UpdateUser, DeleteUser, CountUsers
 │   ├── Enums/              → RoleEnum (admin, manager, user)
 │   ├── Repositories/
 │   ├── Resources/
@@ -770,19 +886,19 @@ app/Api/Modules/
 ├── Import/
 │   ├── Controllers/
 │   ├── Data/               → CreateImportData, ImportQueryData
-│   ├── UseCases/
+│   ├── UseCases/           → CreateImport, GetImport, GetImports, DeleteImport, RetryImport
 │   ├── Services/           → CsvParserService, ImportService (streaming)
 │   ├── Jobs/               → ProcessImportJob, ProcessImportChunkJob
-│   ├── Events/             → ImportCompleted, ImportFailed
-│   ├── Listeners/          → UpdateImportStatus
+│   ├── Events/             → ChunkProcessed, ImportBatchCompleted
+│   ├── Listeners/          → UpdateImportProgress, FinalizeImport
 │   ├── Enums/              → ImportStatusEnum
 │   ├── Repositories/       → Queries, bulk upsert, atomic progress
 │   ├── Resources/
 │   └── Tests/
 ├── Export/
 │   ├── Controllers/
-│   ├── Data/               → CreateExportData, ExportFiltersData
-│   ├── UseCases/
+│   ├── Data/               → CreateExportData, ExportFiltersData, ExportQueryData
+│   ├── UseCases/           → CreateExport, GetExport, GetExports, DownloadExport, DeleteExport, RetryExport
 │   ├── Services/           → ExportService (streaming + compressão)
 │   ├── Jobs/               → ProcessExportJob
 │   ├── Enums/              → ExportStatusEnum
@@ -812,13 +928,14 @@ O Service é **opcional** — só existe quando há lógica de negócio complexa
 |-------------------------|------------------------------------------------------------|
 | Correlation ID          | Middleware injeta UUID em cada requisição e propaga nos logs |
 | Feature Flags           | Middleware bloqueia rotas de features desabilitadas         |
-| Rate Limiting           | Throttle por IP e por usuário autenticado                  |
+| Rate Limiting Granular  | 5 limiters por tipo de operação, isolados por usuário      |
 | CQRS (Read Model)       | Cache Redis para status de import/export                  |
-| Domain Events           | ImportCompleted, ImportFailed                              |
+| Domain Events           | ChunkProcessed, ImportBatchCompleted                      |
 | Auditoria               | Trait Auditable com log automático de created/updated/deleted |
 | Bulk Operations         | Upsert atômico para importação (idempotente por email)    |
 | Streaming               | Generators para parsing CSV e geração de export (sem OOM) |
 | Atomic Updates           | `DB::raw()` para incrementos concorrentes de progresso   |
+| Job Resilience           | `failed()` handler, stale job detection, retry/delete     |
 
 ## Estrutura Docker
 
