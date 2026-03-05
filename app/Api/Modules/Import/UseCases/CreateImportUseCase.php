@@ -10,6 +10,7 @@ use App\Api\Modules\Import\Repositories\ImportRepository;
 use App\Api\Modules\Import\Services\ImportService;
 use App\Models\Import;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 class CreateImportUseCase
@@ -25,11 +26,11 @@ class CreateImportUseCase
             throw new RuntimeException('Usuário não autenticado.');
         }
 
-        return DB::transaction(function () use ($data, $userId): Import {
+        $import = DB::transaction(function () use ($data, $userId): Import {
             $path = $data->file->store('imports', 'local');
             $originalFilename = $data->file->getClientOriginalName();
 
-            $import = $this->importRepository->create([
+            return $this->importRepository->create([
                 'user_id' => $userId,
                 'status' => ImportStatusEnum::Queued->value,
                 'progress' => 0,
@@ -40,10 +41,45 @@ class CreateImportUseCase
                 'original_filename' => $originalFilename,
                 'metadata' => null,
             ]);
-
-            $this->importService->startImport($import);
-
-            return $import;
         });
+
+        $this->dispatchWithRetry($import);
+
+        return $import;
+    }
+
+    private function dispatchWithRetry(Import $import, int $maxRetries = 3): void
+    {
+        $lastException = null;
+
+        for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
+            try {
+                $this->importService->startImport($import);
+
+                return;
+            } catch (\Throwable $e) {
+                $lastException = $e;
+                Log::warning('Import dispatch attempt failed', [
+                    'import_id' => $import->id,
+                    'attempt' => $attempt,
+                    'error' => $e->getMessage(),
+                ]);
+
+                if ($attempt < $maxRetries) {
+                    usleep($attempt * 100_000);
+                }
+            }
+        }
+
+        $this->importRepository->update($import, [
+            'status' => ImportStatusEnum::Failed->value,
+            'error_message' => 'Falha ao despachar job após '.$maxRetries.' tentativas: '.$lastException?->getMessage(),
+            'finished_at' => now(),
+        ]);
+
+        Log::error('Import dispatch failed permanently', [
+            'import_id' => $import->id,
+            'error' => $lastException?->getMessage(),
+        ]);
     }
 }
