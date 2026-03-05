@@ -11,20 +11,26 @@ class UserSeeder extends Seeder
 {
     public function run(): void
     {
-        User::factory()->admin()->withProfile()->create([
-            'name' => 'Admin User',
-            'email' => 'admin@example.com',
-        ]);
+        if (! User::where('email', 'admin@example.com')->exists()) {
+            User::factory()->admin()->withProfile()->create([
+                'name' => 'Admin User',
+                'email' => 'admin@example.com',
+            ]);
+        }
 
-        User::factory()->manager()->withProfile()->create([
-            'name' => 'Manager User',
-            'email' => 'manager@example.com',
-        ]);
+        if (! User::where('email', 'manager@example.com')->exists()) {
+            User::factory()->manager()->withProfile()->create([
+                'name' => 'Manager User',
+                'email' => 'manager@example.com',
+            ]);
+        }
 
-        User::factory()->withProfile()->create([
-            'name' => 'Regular User',
-            'email' => 'user@example.com',
-        ]);
+        if (! User::where('email', 'user@example.com')->exists()) {
+            User::factory()->withProfile()->create([
+                'name' => 'Regular User',
+                'email' => 'user@example.com',
+            ]);
+        }
 
         User::factory(5)->admin()->withProfile()->create();
         User::factory(10)->manager()->withProfile()->create();
