@@ -8,9 +8,12 @@ use App\Api\Modules\Import\Data\CreateImportData;
 use App\Api\Modules\Import\Data\ImportQueryData;
 use App\Api\Modules\Import\Resources\ImportResource;
 use App\Api\Modules\Import\UseCases\CreateImportUseCase;
+use App\Api\Modules\Import\UseCases\DeleteImportUseCase;
 use App\Api\Modules\Import\UseCases\GetImportsUseCase;
 use App\Api\Modules\Import\UseCases\GetImportUseCase;
+use App\Api\Modules\Import\UseCases\RetryImportUseCase;
 use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Symfony\Component\HttpFoundation\Response;
@@ -43,5 +46,23 @@ class ImportController extends Controller
         $userId = $request->user()?->getKey();
 
         return ImportResource::make($useCase->execute($import, $userId !== null ? (int) $userId : null));
+    }
+
+    public function destroy(Request $request, string $import, DeleteImportUseCase $useCase): JsonResponse
+    {
+        $userId = (int) $request->user()?->getKey();
+        $useCase->execute($import, $userId);
+
+        return response()->json(null, Response::HTTP_NO_CONTENT);
+    }
+
+    public function retry(Request $request, string $import, RetryImportUseCase $useCase): JsonResponse
+    {
+        $userId = (int) $request->user()?->getKey();
+        $result = $useCase->execute($import, $userId);
+
+        return ImportResource::make($result)
+            ->response()
+            ->setStatusCode(Response::HTTP_ACCEPTED);
     }
 }
