@@ -17,6 +17,10 @@ services:
       - APP_ENV=local
       - DB_HOST=postgres
       - REDIS_HOST=redis
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
     networks:
       - app-network
 
@@ -45,6 +49,18 @@ services:
       POSTGRES_DB: import_export_api_project
       POSTGRES_USER: app_user
       POSTGRES_PASSWORD: app_secret
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=600"
+      - "-c"
+      - "shared_buffers=256MB"
+      - "-c"
+      - "work_mem=4MB"
+      - "-c"
+      - "effective_cache_size=512MB"
+      - "-c"
+      - "maintenance_work_mem=64MB"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -61,7 +77,7 @@ services:
     restart: unless-stopped
     ports:
       - "6381:6379"
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru --tcp-backlog 511 --timeout 0
     volumes:
       - redis-data:/data
     healthcheck:
@@ -91,6 +107,10 @@ services:
       - APP_ENV=local
       - DB_HOST=postgres
       - REDIS_HOST=redis
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
     networks:
       - app-network
 
