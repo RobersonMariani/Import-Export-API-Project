@@ -5,6 +5,9 @@ set -uo pipefail
 #  Stress Test — Importações simultâneas
 #  Gera N arquivos CSV com dados aleatórios e dispara
 #  todas as importações em paralelo, monitorando o progresso.
+#
+#  Uso: ./scripts/stress-test.sh [NUM_IMPORTS] [ROWS_PER_CSV] [CONCURRENCY]
+#  Ex:  ./scripts/stress-test.sh 100 100 50
 # ============================================================
 
 API_URL="${API_URL:-http://localhost:8080/api/v1}"
@@ -12,6 +15,7 @@ EMAIL="${EMAIL:-admin@example.com}"
 PASSWORD="${PASSWORD:-password}"
 NUM_IMPORTS="${1:-5}"
 ROWS_PER_CSV="${2:-100}"
+CONCURRENCY="${3:-50}"
 POLL_INTERVAL=5
 TMP_DIR=$(mktemp -d)
 
@@ -81,10 +85,11 @@ echo -e "${BOLD}${BLUE}╔══════════════════
 echo -e "${BOLD}${BLUE}║       STRESS TEST — Import Export API            ║${NC}"
 echo -e "${BOLD}${BLUE}╚══════════════════════════════════════════════════╝${NC}"
 echo ""
-echo -e "  Importações simultâneas: ${BOLD}${NUM_IMPORTS}${NC}"
-echo -e "  Linhas por CSV:          ${BOLD}${ROWS_PER_CSV}${NC}"
-echo -e "  Total de registros:      ${BOLD}$((NUM_IMPORTS * ROWS_PER_CSV))${NC}"
-echo -e "  API:                     ${BOLD}${API_URL}${NC}"
+echo -e "  Importações:       ${BOLD}${NUM_IMPORTS}${NC}"
+echo -e "  Linhas por CSV:    ${BOLD}${ROWS_PER_CSV}${NC}"
+echo -e "  Total registros:   ${BOLD}$((NUM_IMPORTS * ROWS_PER_CSV))${NC}"
+echo -e "  Concorrência:      ${BOLD}${CONCURRENCY}${NC} uploads simultâneos"
+echo -e "  API:               ${BOLD}${API_URL}${NC}"
 echo ""
 
 # ============================================================
@@ -137,44 +142,79 @@ done
 ok "CSVs gerados em ${TMP_DIR}"
 
 # ============================================================
-#  3. Disparar importações simultaneamente
+#  3. Disparar importações com concorrência controlada
 # ============================================================
-log "Disparando ${BOLD}${NUM_IMPORTS}${NC} importações em paralelo..."
+log "Disparando ${BOLD}${NUM_IMPORTS}${NC} importações (${BOLD}${CONCURRENCY}${NC} simultâneas)..."
 
-IMPORT_IDS=()
-PIDS=()
 START_TIME=$(date +%s)
+ACTIVE_PIDS=()
+COMPLETED_UPLOADS=0
+FAILED_UPLOADS=0
 
-BATCH_SIZE=5
-batch_count=0
+upload_one() {
+  local idx=$1
+  local csv_file="${TMP_DIR}/import_${idx}.csv"
+  local result_file="${TMP_DIR}/result_${idx}.json"
+  local max_retries=3
+  local attempt=0
+
+  while [ $attempt -lt $max_retries ]; do
+    attempt=$((attempt + 1))
+
+    http_code=$(curl -s -w "%{http_code}" -o "$result_file" \
+      -X POST "${API_URL}/imports" \
+      -H "Authorization: Bearer ${TOKEN}" \
+      -H "Accept: application/json" \
+      -F "file=@${csv_file}" 2>/dev/null)
+
+    if [ "$http_code" = "429" ]; then
+      local wait=$((attempt * 2))
+      sleep "$wait"
+      continue
+    fi
+
+    if [ "$http_code" = "201" ] || [ "$http_code" = "200" ]; then
+      return 0
+    fi
+
+    sleep 1
+  done
+
+  return 1
+}
 
 for i in $(seq 1 "$NUM_IMPORTS"); do
-  CSV_FILE="${TMP_DIR}/import_${i}.csv"
-  RESULT_FILE="${TMP_DIR}/result_${i}.json"
+  upload_one "$i" &
+  ACTIVE_PIDS+=($!)
 
-  curl -s -X POST "${API_URL}/imports" \
-    -H "Authorization: Bearer ${TOKEN}" \
-    -H "Accept: application/json" \
-    -F "file=@${CSV_FILE}" \
-    -o "$RESULT_FILE" &
-
-  PIDS+=($!)
-  batch_count=$((batch_count + 1))
-
-  if [ $batch_count -ge $BATCH_SIZE ]; then
-    for pid in "${PIDS[@]}"; do
-      wait "$pid"
+  if [ ${#ACTIVE_PIDS[@]} -ge "$CONCURRENCY" ]; then
+    for pid in "${ACTIVE_PIDS[@]}"; do
+      wait "$pid" 2>/dev/null
+      if [ $? -eq 0 ]; then
+        COMPLETED_UPLOADS=$((COMPLETED_UPLOADS + 1))
+      else
+        FAILED_UPLOADS=$((FAILED_UPLOADS + 1))
+      fi
     done
-    PIDS=()
-    batch_count=0
-    sleep 1
+    ACTIVE_PIDS=()
   fi
 done
 
-for pid in "${PIDS[@]}"; do
-  wait "$pid"
+for pid in "${ACTIVE_PIDS[@]}"; do
+  wait "$pid" 2>/dev/null
+  if [ $? -eq 0 ]; then
+    COMPLETED_UPLOADS=$((COMPLETED_UPLOADS + 1))
+  else
+    FAILED_UPLOADS=$((FAILED_UPLOADS + 1))
+  fi
 done
 
+UPLOAD_TIME=$(( $(date +%s) - START_TIME ))
+
+echo ""
+log "Upload concluído em ${BOLD}${UPLOAD_TIME}s${NC}"
+
+IMPORT_IDS=()
 for i in $(seq 1 "$NUM_IMPORTS"); do
   RESULT_FILE="${TMP_DIR}/result_${i}.json"
   IMPORT_ID=$(cat "$RESULT_FILE" 2>/dev/null | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
@@ -184,7 +224,8 @@ for i in $(seq 1 "$NUM_IMPORTS"); do
     ok "Import #${i}: ${IMPORT_ID:0:8}..."
   else
     fail "Import #${i}: falha ao criar"
-    cat "$RESULT_FILE" 2>/dev/null
+    error_msg=$(cat "$RESULT_FILE" 2>/dev/null | grep -o '"message":"[^"]*"' | head -1 | cut -d'"' -f4)
+    [ -n "$error_msg" ] && echo -e "    ${RED}→ ${error_msg}${NC}"
   fi
 done
 
@@ -194,7 +235,7 @@ if [ ${#IMPORT_IDS[@]} -eq 0 ]; then
 fi
 
 echo ""
-log "Total de importações criadas: ${BOLD}${#IMPORT_IDS[@]}${NC}"
+log "Total criadas: ${BOLD}${#IMPORT_IDS[@]}/${NUM_IMPORTS}${NC} (${FAILED_UPLOADS} falhas de upload)"
 
 # ============================================================
 #  4. Monitorar progresso
@@ -213,7 +254,6 @@ while true; do
   completed_count=0
   failed_count=0
   all_done=true
-  status_line=""
 
   for idx in "${!IMPORT_IDS[@]}"; do
     import_id="${IMPORT_IDS[$idx]}"
@@ -221,7 +261,7 @@ while true; do
 
     http_code=""
     response=""
-    for attempt in 1 2 3; do
+    for attempt in 1 2 3 4 5; do
       full_response=$(curl -s -w "\n%{http_code}" -X GET "${API_URL}/imports/${import_id}" \
         -H "Authorization: Bearer ${TOKEN}" \
         -H "Accept: application/json" 2>/dev/null)
@@ -229,15 +269,16 @@ while true; do
       response=$(echo "$full_response" | sed '$d')
 
       if [ "$http_code" = "429" ]; then
-        sleep 2
+        sleep "$((attempt))"
         continue
       fi
       break
     done
 
     if [ "$http_code" = "429" ]; then
-      status="rate_limited"
-      response=""
+      all_done=false
+      echo -e "  ${YELLOW}⏳${NC} #${num} ${import_id:0:8}  [rate limited — aguardando]"
+      continue
     fi
 
     status=$(echo "$response" | grep -o '"status":"[^"]*"' | head -1 | cut -d'"' -f4)
@@ -287,7 +328,7 @@ while true; do
 
     echo -e "  ${status_icon} #${num} ${import_id:0:8}  [${BLUE}${bar}${NC}${bar_empty}] ${pct}%  ${processed}/${total}  ${GREEN}ok:${success}${NC} ${RED}err:${failed_rows}${NC}  (${status})"
 
-    sleep 0.2
+    sleep 0.1
   done
 
   ELAPSED=$(( $(date +%s) - START_TIME ))
@@ -346,6 +387,7 @@ echo -e "  ${GREEN}Sucesso:${NC}            ${total_success}"
 echo -e "  ${RED}Erros:${NC}              ${total_failed_rows}"
 echo ""
 echo -e "  ${BOLD}Performance:${NC}"
+echo -e "  ${CYAN}Tempo upload:${NC}       ${UPLOAD_TIME}s"
 echo -e "  ${CYAN}Tempo total:${NC}        ${TOTAL_ELAPSED}s"
 
 if [ "$TOTAL_ELAPSED" -gt 0 ] && [ "$total_processed" -gt 0 ]; then
