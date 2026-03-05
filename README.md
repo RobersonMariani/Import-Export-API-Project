@@ -99,9 +99,9 @@ A API utiliza rate limiting granular por tipo de operação, isolando limites po
 | Limiter      | Limite      | Chave       | Rotas                                   |
 |--------------|-------------|-------------|------------------------------------------|
 | `auth`       | 30/min      | por IP      | Login, Register (proteção brute force)   |
-| `api-read`   | 2.000/min   | por usuário | GET — listagens, status, polling         |
-| `api-write`  | 1.000/min   | por usuário | DELETE, retry, CRUD de escrita           |
-| `api-upload` | 1.000/min   | por usuário | POST — criação de imports/exports        |
+| `api-read`   | 3.000/min   | por usuário | GET — listagens, status, polling         |
+| `api-write`  | 1.500/min   | por usuário | DELETE, retry, CRUD de escrita           |
+| `api-upload` | 3.000/min   | por usuário | POST — criação de imports/exports        |
 | `monitoring` | 120/min     | por IP      | Health check, Metrics                    |
 
 Quando o limite é atingido, a API retorna `429 Too Many Requests` com os headers `X-RateLimit-Limit`, `X-RateLimit-Remaining` e `Retry-After`.
@@ -802,7 +802,9 @@ Cada fila possui retry automático com backoff progressivo (10s, 30s, 60s) e má
 ### Resiliência de Jobs
 
 - Jobs que falham após todas as tentativas são marcados como `failed` com `error_message` detalhado
-- O comando `jobs:detect-stale` roda a cada 5 minutos e marca como `failed` imports/exports que ficaram em `queued` ou `processing` por mais de 30 minutos
+- O comando `jobs:detect-stale` roda a cada **2 minutos** com dois thresholds:
+  - `--queued-minutes=5`: re-despacha automaticamente imports `queued` órfãos (jobs perdidos pelo Redis sob carga)
+  - `--minutes=30`: marca como `failed` imports/exports em `processing` por tempo excessivo
 - O frontend permite **reprocessar** (retry) ou **excluir** imports/exports com falha
 
 ## Stress Test
@@ -834,7 +836,7 @@ O script:
 | Cenário                | Resultado                                             |
 |------------------------|-------------------------------------------------------|
 | 100 imports x 100 rows | 10.000 registros, 100/100 OK, 0 falhas, ~77s, ~129 reg/s |
-| 500 imports x 500 rows | 250.000 registros, 482/500 OK, 0 falhas, ~525s, ~459 reg/s |
+| 500 imports x 50 rows  | 25.000 registros, 500/500 upload, 496 OK (4 órfãos auto-detected), ~250s processamento |
 
 ## Testes
 
@@ -959,7 +961,8 @@ O pipeline de importação foi otimizado para alta concorrência:
 | **PostgreSQL** | max_connections=600, shared_buffers=256MB, work_mem=4MB | Suporta todas as conexões PHP-FPM + workers |
 | **Redis** | maxmemory 512MB, tcp-backlog 511 | Filas maiores e mais throughput |
 | **Workers** | 28 processos (6+16+6), sleep=1s, rest=0.1s | Alto throughput de processamento |
-| **Rate limiting** | upload 1000/min, read 2000/min, write 1000/min | Suporta 500+ imports simultâneos |
+| **Rate limiting** | upload 3000/min, read 3000/min, write 1500/min | Suporta 500+ imports simultâneos |
+| **Stale detection** | Re-despacha queued órfãos a cada 2min (threshold 5min) | Recupera jobs perdidos sob carga |
 | **Memória PHP** | 128MB por processo (vs 512MB), suficiente para CSV streaming | 512 workers cabem em memória |
 | **Docker** | ulimits nofile=65535 nos containers app e worker | Sem limite de file descriptors |
 
