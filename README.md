@@ -836,7 +836,7 @@ O script:
 | Cenário                | Resultado                                             |
 |------------------------|-------------------------------------------------------|
 | 100 imports x 100 rows | 10.000 registros, 100/100 OK, 0 falhas, ~77s, ~129 reg/s |
-| 500 imports x 50 rows  | 25.000 registros, 500/500 upload, 496 OK (4 órfãos auto-detected), ~250s processamento |
+| 500 imports x 50 rows  | 25.000 registros, 500/500 OK, 0 falhas, ~185s, ~135 reg/s |
 
 ## Testes
 
@@ -947,6 +947,7 @@ O Service é **opcional** — só existe quando há lógica de negócio complexa
 | Streaming               | Generators para parsing CSV e geração de export (sem OOM) |
 | Atomic Updates           | `DB::raw()` para incrementos concorrentes de progresso   |
 | Job Resilience           | `failed()` handler, stale job detection, retry/delete     |
+| Dispatch After Commit    | Job despachado após commit da transação, com 3 retries    |
 
 ### Otimizações de Performance
 
