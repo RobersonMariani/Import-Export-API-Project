@@ -1,0 +1,11 @@
+.git
+node_modules
+vendor
+storage/app/private/imports
+storage/app/private/exports
+storage/logs/*.log
+storage/framework/cache/data
+storage/framework/sessions
+storage/framework/views
+.env
+.env.local
