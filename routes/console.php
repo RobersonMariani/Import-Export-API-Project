@@ -10,4 +10,4 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::command('jobs:detect-stale --minutes=30')->everyFiveMinutes();
+Schedule::command('jobs:detect-stale --minutes=30 --queued-minutes=5')->everyTwoMinutes();
